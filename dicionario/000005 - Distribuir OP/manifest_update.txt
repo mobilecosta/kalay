@@ -1,0 +1,33 @@
+MANIFESTO DE ATUALIZAÇÃO
+
+Data : 17/08/2025
+Hora : 13:59:19
+Arquivo de atualização diferencial baseado em projeto gerado pelo Configurador
+Projeto : 000005
+Descrição : DISTRIBUIR OP                                     
+Versão : 0001
+Release de referência : 12.1.2410 
+Responsável pelo Projeto: 000000 - Administrador
+Geração do Pacote: 000000 - Administrador
+-----------------------------
+Componentes do arquivo de atualização :
+
+------------
+SX3
+
+Operação:Inclusão ou Alteração
+Campo : B1_XQTDBAT
+
+
+------------
+SX6
+
+Operação:Inclusão ou Alteração
+Filial :        
+Parâmetro : MV_XVLDDIS
+
+
+------------
+Helps (hlppack*.txt)
+
+Chave : B1_XQTDBAT

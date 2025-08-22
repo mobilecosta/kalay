@@ -1,0 +1,118 @@
+MANIFESTO DE ATUALIZAÇÃO
+
+Data : 13/02/2025
+Hora : 10:12:32
+Arquivo de atualização diferencial baseado em projeto gerado pelo Configurador
+Projeto : 000001
+Descrição : PERCENTUAL ESTRUTURA                              
+Versão : 0001
+Release de referência : 12.1.2310 
+Responsável pelo Projeto: 000000 - Administrador
+Geração do Pacote: 000000 - Administrador
+-----------------------------
+Componentes do arquivo de atualização :
+
+------------
+SX3
+
+Operação:Inclusão ou Alteração
+Campo : DG1_XPERCE
+
+Operação:Inclusão ou Alteração
+Campo : DG1_QTAC  
+
+Operação:Inclusão ou Alteração
+Campo : DG1_QTMT  
+
+Operação:Inclusão ou Alteração
+Campo : DG1_TPVV  
+
+Operação:Inclusão ou Alteração
+Campo : DG1_QTUT  
+
+Operação:Inclusão ou Alteração
+Campo : DG1_QTLQ  
+
+Operação:Inclusão ou Alteração
+Campo : DG1_VLPN  
+
+Operação:Inclusão ou Alteração
+Campo : DG1_VLPNLS
+
+Operação:Inclusão ou Alteração
+Campo : DG1_TPSB  
+
+Operação:Inclusão ou Alteração
+Campo : DG1_CDRE  
+
+Operação:Inclusão ou Alteração
+Campo : DG1_IDNV  
+
+Operação:Inclusão ou Alteração
+Campo : G1_XPERCEN
+
+Operação:Inclusão ou Alteração
+Campo : G1_QUANT  
+
+Operação:Inclusão ou Alteração
+Campo : G1_PERDA  
+
+Operação:Inclusão ou Alteração
+Campo : G1_INI    
+
+Operação:Inclusão ou Alteração
+Campo : G1_FIM    
+
+Operação:Inclusão ou Alteração
+Campo : G1_OBSERV 
+
+Operação:Inclusão ou Alteração
+Campo : G1_FIXVAR 
+
+Operação:Inclusão ou Alteração
+Campo : G1_GROPC  
+
+Operação:Inclusão ou Alteração
+Campo : G1_OPC    
+
+Operação:Inclusão ou Alteração
+Campo : G1_REVINI 
+
+Operação:Inclusão ou Alteração
+Campo : G1_REVFIM 
+
+Operação:Inclusão ou Alteração
+Campo : G1_POTENCI
+
+Operação:Inclusão ou Alteração
+Campo : G1_TIPVEC 
+
+Operação:Inclusão ou Alteração
+Campo : G1_VECTOR 
+
+Operação:Inclusão ou Alteração
+Campo : G1_VLCOMPE
+
+Operação:Inclusão ou Alteração
+Campo : G1_USAALT 
+
+Operação:Inclusão ou Alteração
+Campo : G1_FANTASM
+
+Operação:Inclusão ou Alteração
+Campo : G1_LISTA  
+
+
+------------
+SX6
+
+Operação:Inclusão ou Alteração
+Filial :        
+Parâmetro : MV_TPPERCE
+
+
+------------
+Helps (hlppack*.txt)
+
+Chave : DG1_XPERCE
+Chave : G1_XPERCEN

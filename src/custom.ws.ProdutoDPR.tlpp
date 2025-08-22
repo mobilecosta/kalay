@@ -1,0 +1,710 @@
+#Include 'TOTVS.CH'
+#Include 'RESTFUL.CH'
+#Include 'tlpp-core.th'
+
+
+/*/{Protheus.doc} ProdutoDPR
+API de integração do Cliente e Produto DPR
+@type class
+@author Mario L. B. Faria
+@since 2/17/2025
+/*/
+Class ProdutoDPR
+
+	Private Data jError    as Json 
+	// Private Data jDadosLog as Json 
+	Private Data aLog      as Array
+
+	Public Method New() as Object 
+	Public Method CatchError()      
+
+	Private Method ValidaJson() as Logical 
+	Private Method CheckProperty() as logical
+	Private Method ValidaFilial() as logical
+	Private Method LimpaDadosLog()
+	Private Method GeraLog()     
+	Private Method GetLog()
+
+	@post('/api/dpr/produto')
+	Public Method PostProduto() as Json
+
+	@put('/api/dpr/produto')
+	Public Method PutProduto() as Json
+
+	@get('/api/dpr/produto')
+	Public Method GetProduto() as Json
+
+EndClass
+
+
+/*/{Protheus.doc} ProdutoDPR::New
+Metodo inicializador da API
+@type method
+@author Mario L. B. Faria
+@since 2/17/2025
+@return object, Onjeto do Metodo
+/*/
+Method New() as object Class ProdutoDPR
+Return Self
+
+
+/*/{Protheus.doc} ProdutoDPR::PostProduto
+Efetua o POST do Metodo
+@type method
+@author Mario L. B. Faria
+@since 11/7/2024
+@return json, Retorno da Classe
+/*/
+Method PostProduto() as Json Class ProdutoDPR
+
+    Local jBody			:= JsonObject():New() as Json
+    Local jResponse		:= Nil    as Json
+	Local cError		:= ""     as Character
+	Local lError		:= .T.    as Logical
+	Local oDpr			:= Nil    as Object
+	Local cVerbo		:= "POST" as Character
+
+	Self:aLog := {}
+	Self:jError := Nil
+	lError      := .F.
+
+	jBody  := JsonObject():New()
+
+	If Type('oRest') == 'O'
+		cBody  := oRest:GetBodyRequest()
+	EndIf
+
+	cBody 	  := FwNoAccent(FwCutOff(DecodeUtf8(cBody)))
+	cError 	  := jBody:FromJson(cBody) 
+	jResponse := JsonObject():New()
+
+	If Empty(cError)
+
+		// Valida Cliente
+		If Self:ValidaJson("C", jBody)
+
+			//Valida Produto
+			If Self:ValidaJson("P", jBody, cVerbo)
+				oDpr := GeraProdutoDPR():New(cVerbo, jBody)
+
+				oDpr:SetCliente()
+				If !oDpr:TemErro()
+
+					oDpr:SetProduto()
+					If !oDpr:TemErro()
+						Self:GeraLog(.F., "Processado com Sucesso")
+					Else
+						lError := .T.
+						Self:GeraLog(.T., oDpr:GetErro())			
+					EndIf
+
+				Else
+					lError := .T.
+					Self:GeraLog(.T., oDpr:GetErro())
+				EndIf
+
+			Else //Erro
+				lError := .T.
+			EndIf			
+
+		Else //Erro
+			lError := .T.
+		EndIf
+
+	Else
+		lError := .T.
+		Self:GeraLog(lError, "Error Parse Body",  cError)
+	EndIf		
+
+	jResponse['message'] := Self:GetLog()
+
+	If (type('oRest') == 'O')
+
+		If (ValType(Self:jError) == 'J')
+			jResponse := Self:jError
+			lError   := .T.
+
+			oRest:SetStatusCode(400)
+		EndIf
+
+		oRest:SetKeyHeaderResponse('Content-Type','application/json')
+		oRest:SetResponse(jResponse:toJson())
+	// Else
+
+	// 	If (ValType(Self:jError) == 'J')
+	// 		jResponse := Self:jError
+	// 		lError   := .T.
+
+	// 	EndIf
+	EndIf
+
+	FWFreeObj(jBody)
+    FWFreeObj(jResponse)
+
+Return //jResponse
+
+
+/*/{Protheus.doc} ProdutoDPR::GetProduto
+Efetua o GET do processo
+@type method
+@author Mario L. B. Faria
+@since 2/17/2025
+/*/
+Method GetProduto() as Json Class ProdutoDPR
+
+    Local jBody		  as Json
+    Local jResponse	  as Json
+	Local jDPR  as Json
+	Local jParams     as Json
+	Local jMeta		  as Json
+	Local cBody		  as Character
+    Local cQuery      as Character
+    Local cAlQry      as Character
+	Local nProduto  as Numeric
+	Local nTotal      as Numeric
+	Local nLimit	  as Numeric
+	Local nPage 	  as Numeric
+	Local nTamanho    as Numeric
+	Local nAtual	  as Numeric
+
+	jBody		:= JsonObject():New()
+	jResponse	:= JsonObject():New()
+	jDPR 		:= JsonObject():New()
+
+	cBody  := oRest:GetBodyRequest()
+	jParams := oRest:GetQueryRequest()
+
+	nLimit := Val(jParams["limit"])
+	nPage  := Val(jParams["page"])
+
+	cError := jBody:FromJson(cBody) 
+
+	If Empty(cError)
+
+		cQuery := "	SELECT " + CRLF
+		cQuery += "		DG3_CDACDV,	DG3_DSACDV,	DG3_CDACDE,	DG3_DSACDE,	DG3_CDUN, DG3_CDGE, " + CRLF
+		cQuery += "		DG3_CDFA, DG3_CDACPY,  DG3_TPST, DG3_CDUNDE, DG3_XFRMTE, DG3_XIDFLG, " + CRLF
+		cQuery += "		DG3_XEMBLG, DG3_XSTATU " + CRLF
+		cQuery += "	FROM " + RetSqlName("DG3") + " DG3 " + CRLF
+		cQuery += "	WHERE " + CRLF
+		cQuery += "			DG3_FILIAL = '" + FwxFilial("DG3") + "' " + CRLF
+		cQuery += "		AND DG3_CDACDV BETWEEN '" + jBody["ProdDesenvolvidoDe"]  + "'  AND '" + jBody["ProdDesenvolvidoAte"]  + "'  " + CRLF
+		cQuery += "		AND DG3_CDACDE BETWEEN '" + jBody["ProdDestinoDe"]  + "'  AND '" + jBody["ProdDestinoAte"]  + "'  " + CRLF
+		cQuery += "		AND DG3.D_E_L_E_T_ = ' ' " + CRLF
+		cQuery += "	ORDER BY DG3_CDACDV, DG3_CDACDE " + CRLF
+
+		cQuery := ChangeQuery(cQuery)
+		cAlQry := MPSysOpenQuery(cQuery)
+
+		If !(cAlQry)->(Eof())
+
+			//Faz a Paginação
+			//************************************************************************
+			nTotal := 0
+			While !(cAlQry)->(EoF())
+				nTotal++
+				(cAlQry)->(DbSkip())
+			EndDo
+			(cAlQry)->(DbGoTop())
+
+			//O tamanho do retorno, será o limit, se ele estiver definido
+			If nLimit > 0
+				nTamanho := nLimit
+			EndIf
+	
+			//Pegando total de páginas
+			nPags := NoRound(nTotal / nTamanho, 0)
+			nPags += Iif(nTotal % nTamanho != 0, 1, 0)
+			
+			//Se vier página
+			If nPage > 0
+				nPagina := nPage
+			EndIf
+	
+			//Se a página vier zerada ou negativa ou for maior que o máximo, será 1 
+			If nPagina <= 0 .Or. nPagina > nPags
+				nPagina := 1
+			EndIf
+	
+			//Se a página for diferente de 1, pula os registros
+			If nPagina != 1
+				(cAlQry)->(DbSkip((nPagina-1) * nTamanho))
+			EndIf
+
+			jMeta := JsonObject():New()
+			jMeta["total"]        := nTotal
+			jMeta["current_page"] := nPagina
+			jMeta["total_page"]   := nPags
+			jMeta["total_items"]  := nTamanho
+			jDPR["meta"] := jMeta
+			//************************************************************************
+
+			jDPR["ProdDesenvolvido"] := {}
+
+			nAtual := 0
+			While !(cAlQry)->(Eof())
+
+				nAtual++
+				
+				//Se ultrapassar o limite, encerra o laço
+				If nAtual > nTamanho
+					Exit
+				EndIf
+
+				nProduto++
+
+				aAdd(jDPR["ProdDesenvolvido"], JsonObject():New())
+				jDPR["ProdDesenvolvido", nProduto, "DG3_CDACDV"] := AllTrim((cAlqry)->DG3_CDACDV) 
+				jDPR["ProdDesenvolvido", nProduto, "DG3_DSACDV"] := AllTrim((cAlqry)->DG3_DSACDV) 
+				jDPR["ProdDesenvolvido", nProduto, "DG3_CDACDE"] := AllTrim((cAlqry)->DG3_CDACDE) 
+				jDPR["ProdDesenvolvido", nProduto, "DG3_DSACDE"] := AllTrim((cAlqry)->DG3_DSACDE) 
+				jDPR["ProdDesenvolvido", nProduto, "DG3_CDUN"]   := AllTrim((cAlqry)->DG3_CDUN) 
+				jDPR["ProdDesenvolvido", nProduto, "DG3_CDGE"]   := AllTrim((cAlqry)->DG3_CDGE) 
+				jDPR["ProdDesenvolvido", nProduto, "DG3_CDFA"]   := AllTrim((cAlqry)->DG3_CDFA) 
+				jDPR["ProdDesenvolvido", nProduto, "DG3_TPST"] 	 := AllTrim((cAlqry)->DG3_TPST) 
+				jDPR["ProdDesenvolvido", nProduto, "DG3_CDUNDE"] := AllTrim((cAlqry)->DG3_CDUNDE) 
+				jDPR["ProdDesenvolvido", nProduto, "DG3_XFRMTE"] := AllTrim((cAlqry)->DG3_XFRMTE) 
+				jDPR["ProdDesenvolvido", nProduto, "DG3_XIDFLG"] := AllTrim((cAlqry)->DG3_XIDFLG) 
+				jDPR["ProdDesenvolvido", nProduto, "DG3_XEMBLG"] := AllTrim((cAlqry)->DG3_XEMBLG) 
+				jDPR["ProdDesenvolvido", nProduto, "DG3_XSTATU"] := AllTrim((cAlqry)->DG3_XSTATU) 
+
+				(cAlQry)->(DbSkip())
+
+			EndDo
+
+		Else
+			jDPR["mensagem"] := "Não foram encontrados Produtos para os filtros enviados"
+			jDPR["filtros"]  := jBody 
+		EndIf
+		
+		(cAlQry)->(DbCloseArea())
+
+	Else
+		jDPR["mensagem"] := "Error Parse Body"
+		jDPR["filtros"]  := cBody 
+	EndIf
+
+	// If (Type('oRest') == 'O')
+		jResponse := jDPR
+		oRest:SetKeyHeaderResponse('Content-Type','application/json')
+		oRest:SetResponse(jResponse:toJson())
+	// Else
+	// 	If (ValType(Self:jError) == 'J')
+	// 		jResponse := Self:jError
+	// 		lError   := .T.
+	// 	EndIf
+	// EndIf
+
+	FWFreeObj(jBody)
+	FWFreeObj(jDPR)
+	FWFreeObj(jResponse)
+
+Return
+
+
+/*/{Protheus.doc} ProdutoDPR::PutProduto
+Efetua o PUT do processo
+@type method
+@author Mario L. B. Faria
+@since 2/17/2025
+/*/
+Method PutProduto() as Json Class ProdutoDPR
+
+    Local jBody			:= JsonObject():New() as Json
+    Local jResponse		:= Nil   as Json
+	Local cError		:= ""	 as Character
+	Local lError		:= .T.	 as Logical
+	Local oDpr			:= Nil   as Object
+	Local cVerbo		:= "PUT" as Character
+
+	Self:aLog := {}
+	Self:jError := Nil
+	lError      := .F.
+
+	jBody  := JsonObject():New()
+
+	If Type('oRest') == 'O'
+		cBody  := oRest:getBodyRequest()
+	EndIf
+
+	cError := jBody:FromJson(cBody) 
+
+	jResponse 	:= JsonObject():New()
+
+	If Empty(cError)
+
+		// Valida Cliente
+		If Self:ValidaJson("C", jBody)
+
+			//Valida Produto
+			If Self:ValidaJson("P", jBody, cVerbo)
+				oDpr := GeraProdutoDPR():New("PUT", jBody)
+
+				oDpr:SetCliente()
+				If !oDpr:TemErro()
+
+					oDpr:SetProduto()
+					If !oDpr:TemErro()
+						Self:GeraLog(.F., "Processado com Sucesso")
+					Else
+						lError := .T.
+						Self:GeraLog(.T., oDpr:GetErro())			
+					EndIf
+
+				Else
+					lError := .T.
+					Self:GeraLog(.T., oDpr:GetErro())
+				EndIf
+
+			Else //Erro
+				lError := .T.
+			EndIf			
+
+		Else //Erro
+			lError := .T.
+		EndIf
+
+	Else
+		lError := .T.
+		Self:GeraLog(lError, "Error Parse Body",  cError)
+	EndIf		
+
+	jResponse['message'] := Self:GetLog()
+
+	If (type('oRest') == 'O')
+
+		If (ValType(Self:jError) == 'J')
+			jResponse := Self:jError
+			lError   := .T.
+
+			oRest:SetStatusCode(400)
+		EndIf
+
+		oRest:SetKeyHeaderResponse('Content-Type','application/json')
+		oRest:SetResponse(jResponse:toJson())
+	// Else
+
+	// 	If (ValType(Self:jError) == 'J')
+	// 		jResponse := Self:jError
+	// 		lError   := .T.
+
+	// 	EndIf
+	EndIf
+
+	FWFreeObj(jBody)
+    FWFreeObj(jResponse)
+
+Return //jResponse
+
+
+/*/{Protheus.doc} ProdutoDPR::ValidaJson
+Valida o Json recebido
+@type method
+@author Mario L. B. Faria
+@since 2/17/2025
+@param cValida, character, Indica se valida C = CLIENTE ou P = PRODUTO
+@param jBody, json, Json recebido
+@param cVerbo, character, indica se POST, PUT 
+@return logical, .T. ou .F.
+/*/
+Method ValidaJson(cValida, jBody, cVerbo) as Logical Class ProdutoDPR
+
+	Local lRet := .F. as Logical
+
+	Default cVerbo := ""
+
+	Do Case
+		Case cValida == "C"	// Valida Cliente
+			If Self:CheckProperty(jBody["cliente"], 'A1_PESSOA'		, 'C', 'NOT_Empty') .And.;
+			   Self:CheckProperty(jBody["cliente"], 'A1_CGC'		, 'C', 'NOT_Empty') .And.;
+			   Self:CheckProperty(jBody["cliente"], 'A1_NOME'		, 'C', 'NOT_Empty') .And.;
+			   Self:CheckProperty(jBody["cliente"], 'A1_END'		, 'C', 'NOT_Empty') .And.;
+			   Self:CheckProperty(jBody["cliente"], 'A1_BAIRRO'		, 'C', 'NOT_Empty') .And.;
+			   Self:CheckProperty(jBody["cliente"], 'A1_TIPO'		, 'C', 'NOT_Empty') .And.;
+			   Self:CheckProperty(jBody["cliente"], 'A1_EST'		, 'C', 'NOT_Empty') .And.;
+			   Self:CheckProperty(jBody["cliente"], 'A1_MUN'		, 'C', 'NOT_Empty') .And.;
+			   Self:CheckProperty(jBody["cliente"], 'A1_DDD'		, 'C', 'NOT_Empty') .And.;
+			   Self:CheckProperty(jBody["cliente"], 'A1_TEL'		, 'C', 'NOT_Empty') .And.;
+			   Self:CheckProperty(jBody["cliente"], 'A1_INSCR'		, 'C', 'NOT_Empty') .And.;
+			   Self:CheckProperty(jBody["cliente"], 'A1_EMAIL'		, 'C', 'NOT_Empty') .And.;
+			   Self:CheckProperty(jBody["cliente"], 'A1_CONTRIB'	, 'C', 'NOT_Empty')
+				lRet := .T.
+			EndIf
+
+		Case cValida == "P"	//Valida Produto
+
+			If Self:CheckProperty(jBody["produto"], 'DG3_CDACDV'	, 'C', 'NOT_Empty') .And.;
+			   Self:CheckProperty(jBody["produto"], 'DG3_DSACDV'	, 'C', 'NOT_Empty') .And.;
+			   Self:CheckProperty(jBody["produto"], 'DG3_CDUN'		, 'C', 'NOT_Empty') .And.;
+			   Self:CheckProperty(jBody["produto"], 'DG3_CDGE'		, 'C', 'NOT_Empty') .And.;
+			   Self:CheckProperty(jBody["produto"], 'DG3_CDFA'		, 'C', 'NOT_Empty')
+				lRet := .T.
+			EndIf
+
+			If lRet .And. cVerbo == "POST"
+				lRet := .F.
+				If Self:CheckProperty(jBody["produto"], 'DG3_XFRMTE'	, 'C', 'NOT_Empty') .And.;
+				   Self:CheckProperty(jBody["produto"], 'DG3_XIDFLG'	, 'C', 'NOT_Empty') .And.;
+				   Self:CheckProperty(jBody["produto"], 'DG3_XEMBLG'	, 'C', 'NOT_Empty')
+					lRet := .T.
+				EndIf
+			EndIf
+
+	End Case
+
+Return lRet
+
+
+/*/{Protheus.doc} ProdutoDPR::CheckProperty
+Validas as propriedades
+@type method
+@author Mario L. B. Faria
+@since 2/17/2025
+@return Logical, .T. ou .F.
+/*/
+Method CheckProperty(jObject	 as variant,;
+					 cProperty 	 as Character,;
+					 cType 		 as Character,;
+					 cValidation as Character,;
+					 nIndex		 as Numeric,;
+					 cMessage 	 as Character) as logical class ProdutoDPR
+
+	Local cCurrentType as Character // tipo atual da Propriedade
+	Local cError       as Character // mensagem de erro
+	Local lOK          as logical   // controle de processamento
+
+	Default nIndex := 0
+
+	lOK := .T.
+
+	If (!Empty(cProperty))
+		If !(jObject:hasProperty(cProperty))
+			Self:CatchError("Propridade '" + cProperty + "' não existe" +;
+				iIf(nIndex > 0, " no índice [" + cValToChar(nIndex) + "]", ""))
+
+			lOK := .F.
+		EndIf
+	EndIf
+
+	If ValType(Self:jError) != 'J'
+		cCurrentType := ValType(iIf(!Empty(cProperty), jObject[cProperty], jObject))
+
+		If (cType == 'D' .AND. cCurrentType == 'C' .AND. !Empty(cProperty))
+			jObject[cProperty] := CtoD(jObject[cProperty])
+			cCurrentType := ValType(jObject[cProperty])
+		EndIf
+
+		If !(cCurrentType == cType)
+			Self:CatchError(iIf(!Empty(cProperty), "Propriedade '" + cProperty + "'", "Item") + " com tipo inválido, tipo '" +;
+				u_GetTypeDescription(cCurrentType) + "' difere do esperado '" + u_GetTypeDescription(cType) + "'" +;
+				iIf(nIndex > 0, " no índice [" + cValToChar(nIndex) + "]", ""))
+
+			lOK := .F.
+		EndIf
+	EndIf
+
+	If ValType(Self:jError) != 'J'
+		Do Case
+			Case cValidation == 'NOT_Empty' // vazio
+				If (Empty(iIf(!Empty(cProperty), jObject[cProperty], jObject)))
+					cError := iIf(!Empty(cProperty), "Propriedade '" + cProperty + "'", "Item") + " não pode estar vazio(a)" +;
+						iIf(nIndex > 0, " no índice [" + cValToChar(nIndex) + "]", "")
+				EndIf
+
+			Case cValidation == 'NOT_Empty_ARRAY' // array vazio
+				If (len(iIf(!Empty(cProperty), jObject[cProperty], jObject)) == 0)
+					cError := iIf(!Empty(cProperty), "Propriedade '" + cProperty + "'", "Item") + " não pode estar vazio(a)" +;
+						iIf(nIndex > 0, " no índice [" + cValToChar(nIndex) + "]", "")
+				EndIf
+
+			Case cValidation == 'NOT_Empty_JSON' // json vazio
+				If (len(iIf(!Empty(cProperty), jObject[cProperty]:getNames(), jObject:getNames())) == 0)
+					cError := iIf(!Empty(cProperty), "Propriedade '" + cProperty + "'", "Item") + " não pode estar vazio(a)" +;
+						iIf(nIndex > 0, " no índice [" + cValToChar(nIndex) + "]", "")
+				EndIf
+
+			Case cValidation == 'NOT_Empty_LOGICAL' // logico vazio
+				If ValType(jObject[cProperty]) != "L"
+					cError := iIf(!Empty(cProperty), "Propriedade '" + cProperty + "'", "Item") + " não pode estar vazio(a)" +;
+						iIf(nIndex > 0, " no índice [" + cValToChar(nIndex) + "]", "")
+				EndIf
+
+		EndCase
+
+		If !Empty(cError)
+			cError := If(!Empty(cMessage), cMessage, cError)
+			Self:GeraLog(.T.,cError)
+			lOK := .F.
+		EndIf
+	EndIf
+
+Return lOK
+
+
+/*/{Protheus.doc} ProdutoDPR::CatchError
+Processa erro
+@type method
+@author Mario L. B. Faria
+@since 2/17/2025
+@param cDescription, character, Descrição
+@param cErrorStack, character, Descrição do erro
+/*/
+Method CatchError(cDescription as Character, cErrorStack as Character) class ProdutoDPR
+
+	Local nCount 	as numeric    
+	Local cProcName as Character
+
+	Self:jError := JsonObject():New()
+
+	If (Empty(cErrorStack))
+		nCount := 01
+
+		cErrorStack := ''
+
+		While (!Empty(cProcName := procName(nCount)))
+			cErrorStack += cProcName + CRLF
+			nCount ++
+		EndDo
+	EndIf
+
+	Self:jError['success']         := .F.
+	Self:jError['errorCode']       := 400
+	Self:jError['errorMessage']    := cDescription
+	Self:jError['messageDetail']   := cErrorStack
+
+Return
+
+
+/*/{Protheus.doc} ProdutoDPR::ValidaFilial
+Valida a existencia da filial
+@type method
+@author Mario L. B. Faria
+@since 2/17/2025
+@param cFilEntrada, character, Filial a ser validada
+@return logical, .T. ou .F.
+/*/
+Method ValidaFilial(cFilEntrada as Character) as Logical class ProdutoDPR
+
+    Local aEmpresas   as Array
+    Local aUNegocios  as Array
+    Local aFIliais    as Array
+
+    Local cEmpresaAux as Character
+    Local cUNegocios  as Character
+    Local cFilialAux  as Character
+
+	Local lFilial	 as Logical
+
+	aEmpresas   := FWAllCompany(cEmpAnt)
+	cEmpresaAux := SubStr(cFilEntrada,1,2)
+
+	aUNegocios  := FWAllUnitBusiness(cEmpAnt)
+	cUNegocios  := SubStr(cFilEntrada,3,2)
+
+	aFiliais    := FWAllFilial(cEmpresaAux,)
+	cFilialAux  := SubStr(cFilEntrada,5,2)
+
+	lFilial := .F.
+	If aScan(aEmpresas,{ |x| AllTrim(x) == cEmpresaAux }) > 0
+		If aScan(aUNegocios,{ |x| AllTrim(x) == cUNegocios }) > 0
+			If aScan(aFiliais,{ |x| AllTrim(x) == cFilialAux }) > 0
+				lFilial := .T.
+			EndIf
+		EndIf
+	EndIf
+	
+	If !lFilial
+		Self:CatchError("Filial Inválida", "A filial informada (" + cFilEntrada + ") não existe no sistema.")	
+	EndIf
+
+
+Return lFilial
+
+
+/*/{Protheus.doc} ProdutoDPR::GeraLog
+Armazena o log em um array de Jsons
+@type method
+@author Mario L. B. Faria
+@since 2/17/2025
+@param lErro, logical, .T. = Erro, .F. = Sucesso
+@param cMensagem, character, Mensagem
+@param cDetalhe, character, Detalhe do log
+/*/
+Method GeraLog(lErro as Logical, cMensagem as Character, cDetalhe as Character) class ProdutoDPR
+
+	Default cDetalhe := ""
+
+	Local aLog as Array
+
+	aLog := {}
+
+	//Detalhes do log
+	aAdd(aLog,If(lErro,"Erro","Sucesso"))
+	aAdd(aLog,cMensagem)
+	aAdd(aLog,cDetalhe)
+
+	aAdd(Self:aLog, aLog)
+
+Return
+
+
+/*/{Protheus.doc} ProdutoDPR::GetLog
+Converta log em um Json de retorno
+@type method
+@author Mario L. B. Faria
+@since 2/17/2025
+/*/
+Method GetLog() class ProdutoDPR
+
+	Local jLog as Json
+	Local nLog as Numeric
+
+	jLog := JsonObject():New()
+	jLog["log"] := {}
+
+	For nLog := 1 to Len(Self:aLog)
+		aAdd(jLog["log"], JsonObject():New())
+        jLog["log", nLog, "status"] 	:= Self:aLog[nLog,01]
+		jLog["log", nLog, "mensagem"] 	:= Self:aLog[nLog,02]
+		jLog["log", nLog, "detalhe"] 	:= Self:aLog[nLog,03]
+	Next nLog
+
+Return jLog
+
+
+/*/{Protheus.doc} GetTypeDescription
+Defini o tipo do campo
+@type function
+@author Mario L. B. Faria
+@since 2/17/2025
+@param cType, character, Tipo do campo
+@return character, Descrição
+/*/
+User Function GetTypeDescription(cType as Character) as Character
+
+	Local cDescription as Character
+
+	Do Case
+		Case cType == 'C' .OR. cType == 'M'
+			cDescription := 'caractere'
+		Case cType == 'N'
+			cDescription := 'numérico'
+		Case cType == 'A'
+			cDescription := 'array'
+		Case cType == 'L'
+			cDescription := 'lógico'
+		Case cType == 'B'
+			cDescription := 'bloco de código'
+		Case cType == 'O'
+			cDescription := 'objeto'
+		Case cType == 'J'
+			cDescription := 'json'
+		Case cType == 'D'
+			cDescription := 'data'
+		Case cType == 'F'
+			cDescription := 'decimal de ponto fixo'
+		otherwise
+			cDescription := 'não definido'
+	EndCase
+
+Return cDescription

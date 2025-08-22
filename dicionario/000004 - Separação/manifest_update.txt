@@ -1,0 +1,656 @@
+MANIFESTO DE ATUALIZAÇÃO
+
+Data : 22/08/2025
+Hora : 05:03:29
+Arquivo de atualização diferencial baseado em projeto gerado pelo Configurador
+Projeto : 000004
+Descrição : SEPARAÇÃO                                         
+Versão : 0001
+Release de referência : 12.1.2410 
+Responsável pelo Projeto: 000000 - Administrador
+Geração do Pacote: 000000 - Administrador
+-----------------------------
+Componentes do arquivo de atualização :
+
+------------
+SIX
+
+Operação:Inclusão ou Alteração
+Tabela : ZS1
+Ordem : 1
+
+Operação:Inclusão ou Alteração
+Tabela : ZS1
+Ordem : 2
+
+Operação:Inclusão ou Alteração
+Tabela : ZS2
+Ordem : 1
+
+Operação:Inclusão ou Alteração
+Tabela : ZS2
+Ordem : 2
+
+Operação:Inclusão ou Alteração
+Tabela : ZS2
+Ordem : 3
+
+Operação:Inclusão ou Alteração
+Tabela : ZS3
+Ordem : 1
+
+
+------------
+SX2
+
+Operação:Inclusão ou Alteração
+Tabela : ZS1
+
+Operação:Inclusão ou Alteração
+Tabela : ZS2
+
+Operação:Inclusão ou Alteração
+Tabela : ZS3
+
+
+------------
+SX3
+
+Operação:Inclusão ou Alteração
+Campo : ZS1_FILIAL
+
+Operação:Inclusão ou Alteração
+Campo : ZS1_STATUS
+
+Operação:Inclusão ou Alteração
+Campo : ZS1_NUMREQ
+
+Operação:Inclusão ou Alteração
+Campo : ZS1_TIPO  
+
+Operação:Inclusão ou Alteração
+Campo : ZS1_EMISSA
+
+Operação:Inclusão ou Alteração
+Campo : ZS1_REQPRI
+
+Operação:Inclusão ou Alteração
+Campo : ZS1_OP    
+
+Operação:Inclusão ou Alteração
+Campo : ZS1_LOTECT
+
+Operação:Inclusão ou Alteração
+Campo : ZS1_DTEMOP
+
+Operação:Inclusão ou Alteração
+Campo : ZS1_CODPRO
+
+Operação:Inclusão ou Alteração
+Campo : ZS1_DESCPR
+
+Operação:Inclusão ou Alteração
+Campo : ZS1_USRSEP
+
+Operação:Inclusão ou Alteração
+Campo : ZS1_DTINSE
+
+Operação:Inclusão ou Alteração
+Campo : ZS1_HRINSE
+
+Operação:Inclusão ou Alteração
+Campo : ZS1_DTFSEP
+
+Operação:Inclusão ou Alteração
+Campo : ZS1_HRFSEP
+
+Operação:Inclusão ou Alteração
+Campo : ZS1_TEMSEP
+
+Operação:Inclusão ou Alteração
+Campo : ZS1_USREST
+
+Operação:Inclusão ou Alteração
+Campo : ZS1_DATEST
+
+Operação:Inclusão ou Alteração
+Campo : ZS1_HOREST
+
+Operação:Inclusão ou Alteração
+Campo : ZS1_CNCMIS
+
+Operação:Inclusão ou Alteração
+Campo : ZS1_RECSC2
+
+Operação:Inclusão ou Alteração
+Campo : ZS2_FILIAL
+
+Operação:Inclusão ou Alteração
+Campo : ZS2_STATUS
+
+Operação:Inclusão ou Alteração
+Campo : ZS2_NUMREQ
+
+Operação:Inclusão ou Alteração
+Campo : ZS2_ITMREQ
+
+Operação:Inclusão ou Alteração
+Campo : ZS2_TRT   
+
+Operação:Inclusão ou Alteração
+Campo : ZS2_CODEMP
+
+Operação:Inclusão ou Alteração
+Campo : ZS2_DSCEMP
+
+Operação:Inclusão ou Alteração
+Campo : ZS2_OP    
+
+Operação:Inclusão ou Alteração
+Campo : ZS2_DTEMP 
+
+Operação:Inclusão ou Alteração
+Campo : ZS2_QTDORI
+
+Operação:Inclusão ou Alteração
+Campo : ZS2_SLDREQ
+
+Operação:Inclusão ou Alteração
+Campo : ZS2_QTDSEP
+
+Operação:Inclusão ou Alteração
+Campo : ZS2_LOCAL 
+
+Operação:Inclusão ou Alteração
+Campo : ZS2_LOTECT
+
+Operação:Inclusão ou Alteração
+Campo : ZS2_DTVALI
+
+Operação:Inclusão ou Alteração
+Campo : ZS2_RECSD4
+
+Operação:Inclusão ou Alteração
+Campo : ZS3_FILIAL
+
+Operação:Inclusão ou Alteração
+Campo : ZS3_CODIGO
+
+Operação:Inclusão ou Alteração
+Campo : ZS3_DESCRI
+
+Operação:Inclusão ou Alteração
+Campo : ZS3_FORINT
+
+Operação:Inclusão ou Alteração
+Campo : ZS3_TIMEOU
+
+Operação:Inclusão ou Alteração
+Campo : ZS3_MBLQL 
+
+
+------------
+SX5
+
+Operação:Inclusão ou Alteração
+Tabela : 00
+Chave : E3    
+Sobreposição de valores ativada
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 001   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 002   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 003   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 004   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 005   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 006   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 007   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 008   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 009   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 010   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 011   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 012   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 013   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 014   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 015   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 016   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 017   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 018   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 019   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 020   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 021   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 022   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 023   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 024   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 025   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 026   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 027   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 028   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 029   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 030   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 031   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 032   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 033   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 034   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 035   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 036   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 037   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 038   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 039   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 040   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 041   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 042   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 043   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 045   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 046   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 047   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 048   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 049   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 050   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 051   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 052   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 053   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 054   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 055   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 056   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 058   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 059   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 060   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 061   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 062   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 063   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 064   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 065   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 066   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 067   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 068   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 069   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 070   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 071   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 072   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 073   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 074   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 075   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 076   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 077   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 078   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 079   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 080   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 081   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 082   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 083   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 084   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 086   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : 087   
+
+Operação:Inclusão ou Alteração
+Tabela : E3
+Chave : Z01   
+
+
+------------
+SX6
+
+Operação:Inclusão ou Alteração
+Filial :        
+Parâmetro : MV_DEVPRO 
+
+Operação:Inclusão ou Alteração
+Filial :        
+Parâmetro : MV_REQPRO 
+
+Operação:Inclusão ou Alteração
+Filial :        
+Parâmetro : MV_TMACOP 
+
+Operação:Inclusão ou Alteração
+Filial :        
+Parâmetro : MV_USRPRI 
+
+
+------------
+SXB
+
+Operação:Inclusão ou Alteração
+Consulta : ZS1   
+Tipo : 1
+Sequência : 01
+Coluna : DB
+
+Operação:Inclusão ou Alteração
+Consulta : ZS1   
+Tipo : 2
+Sequência : 01
+Coluna : 01
+
+Operação:Inclusão ou Alteração
+Consulta : ZS1   
+Tipo : 4
+Sequência : 01
+Coluna : 01
+
+Operação:Inclusão ou Alteração
+Consulta : ZS1   
+Tipo : 4
+Sequência : 01
+Coluna : 02
+
+Operação:Inclusão ou Alteração
+Consulta : ZS1   
+Tipo : 4
+Sequência : 01
+Coluna : 03
+
+Operação:Inclusão ou Alteração
+Consulta : ZS1   
+Tipo : 4
+Sequência : 01
+Coluna : 04
+
+Operação:Inclusão ou Alteração
+Consulta : ZS1   
+Tipo : 5
+Sequência : 01
+Coluna :   
+
+Operação:Inclusão ou Alteração
+Consulta : ZS1   
+Tipo : 5
+Sequência : 02
+Coluna :   
+
+
+------------
+Helps (hlppack*.txt)
+
+Chave : ZS1_STATUS
+Chave : ZS1_NUMREQ
+Chave : ZS1_TIPO  
+Chave : ZS1_EMISSA
+Chave : ZS1_REQPRI
+Chave : ZS1_OP    
+Chave : ZS1_LOTECT
+Chave : ZS1_DTEMOP
+Chave : ZS1_CODPRO
+Chave : ZS1_DESCPR
+Chave : ZS1_USRSEP
+Chave : ZS1_DTINSE
+Chave : ZS1_HRINSE
+Chave : ZS1_DTFSEP
+Chave : ZS1_HRFSEP
+Chave : ZS1_TEMSEP
+Chave : ZS1_USREST
+Chave : ZS1_DATEST
+Chave : ZS1_HOREST
+Chave : ZS1_CNCMIS
+Chave : ZS1_RECSC2
+Chave : ZS2_STATUS
+Chave : ZS2_NUMREQ
+Chave : ZS2_ITMREQ
+Chave : ZS2_TRT   
+Chave : ZS2_CODEMP
+Chave : ZS2_DSCEMP
+Chave : ZS2_OP    
+Chave : ZS2_DTEMP 
+Chave : ZS2_QTDORI
+Chave : ZS2_SLDREQ
+Chave : ZS2_QTDSEP
+Chave : ZS2_LOCAL 
+Chave : ZS2_LOTECT
+Chave : ZS2_DTVALI
+Chave : ZS2_RECSD4
+Chave : ZS3_CODIGO
+Chave : ZS3_DESCRI
+Chave : ZS3_FORINT
+Chave : ZS3_TIMEOU
+Chave : ZS3_MBLQL 

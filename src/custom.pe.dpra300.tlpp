@@ -1,0 +1,185 @@
+#include "protheus.ch"
+
+/*/{Protheus.doc} nomeFunction
+Ponto de entrada MVC
+@type user function
+@author Claudio Bozzi
+@since 13/02/2025
+@version 2310
+/*/
+User Function DPRA300()
+
+    Local oModel := If(Type("ParamIXB[1]") == "O", ParamIXB[1], Nil)
+    Local cLocal := If(Type("ParamIXB[2]") == "C", ParamIXB[2], "" )
+    Local cForm	 := If(Type("ParamIXB[3]") == "C", ParamIXB[3], "" )
+    Local nOpc	 := If(ValType(oModel) == "O", oModel:GetOperation(), 0)
+    Local xRet	 := .T.
+    Local nCont  := 0
+    Local nSoma  := 0
+
+    Local aArea  := GetArea()
+
+    Local aSaveLines	:= FWSaveRows()
+
+    Do Case
+
+        Case cLocal == 'BUTTONBAR'		//Para a inclusão de botões na ControlBar
+
+            xRetorno := {{"*Envio Custo", "CUSTO", { || u_envCusto() }}}
+
+        Case cLocal == "FORMPOS" .and. cForm == "DG1DETAIL" .and. (nOpc == 3 .or. nOpc == 4)
+
+            For nCont := 1 To oModel:Length()
+
+                oModel:GoLine(nCont)
+
+                nTamAcols := len(aCols[nCont])
+
+                If ! aCols[nCont][nTamAcols]
+
+                    nSoma += FWFldGet("DG1_XPERCE")
+
+                    If ! Empty(FWFldGet("DG1_CDMT"))
+                        cProd := FWFldGet("DG1_CDMT")
+                    Else
+                        cProd := FWFldGet("DG1_CDMTDV")
+                    EndIf
+
+                    SB1->(dbSetOrder(1))
+                    SB1->(dbSeek( xFilial('SB1') + cProd )) 
+
+                    If FWFldGet("DG1_XPERCE") = 0 .And. ! SB1->B1_TIPO $ SuperGetMV("MV_TPPERCEN",.F.,"EM")
+                        Help(Nil, Nil,"Atenção",Nil,"Existem itens que não tiveram o percentual informado.",1,0,Nil, Nil, Nil, Nil, Nil, {"Revise os percentuais aplicados aos componentes."})
+                        xRet := .F.
+                    EndIf
+
+                EndIf
+
+            Next
+
+            If nSoma != 100
+                Help(Nil, Nil,"Atenção",Nil,"Soma dos percentuais atingiu " + cValToChar(nSoma) + "%",1,0,Nil, Nil, Nil, Nil, Nil, {"Revise os percentuais aplicados aos componentes."})
+                xRet := .F.
+            EndIf
+
+        Case cLocal == "FORMPRE" .and. cForm == "DG1DETAIL" .and. (nOpc == 3 .or. nOpc == 4)
+
+            If ParamIXB[5] == "CANSETVALUE" .And. ParamIXB[6] == "DG1_XPERCE" 
+
+                If ! Empty(FWFldGet("DG1_CDMT"))
+                    cProd := FWFldGet("DG1_CDMT")
+                Else
+                    cProd := FWFldGet("DG1_CDMTDV")
+                EndIf
+
+                SB1->(dbSetOrder(1))
+                SB1->(dbSeek( xFilial('SB1') + cProd )) 
+                
+                If SB1->B1_TIPO $ SuperGetMV("MV_TPPERCEN",.F.,"EM")
+                    xRet := .F.
+                EndIf
+            
+            EndIf
+
+            If ParamIXB[5] == "SETVALUE" .And. ParamIXB[6] == "DG1_XPERCE" 
+
+                If M->DG0_QTACEA = 0
+                    Help(Nil, Nil,"Atenção",Nil,"Quantidade base não informada!",1,0,Nil, Nil, Nil, Nil, Nil, {"Informe-a antes dos percentuais."})
+                    xRet := .F.
+                Else
+                    oModel:SetValue( "DG1_QTMT", M->DG0_QTACEA * ( FWFldGet("DG1_XPERCE") / 100 ) )
+                EndIf
+
+            EndIf
+
+    EndCase
+
+    FWRestRows(aSaveLines)
+
+    RestArea(aArea)
+
+Return xRet
+
+
+/*/{Protheus.doc} envCusto
+Envia solicitação ao Fluig para movimentar processo
+@type user function
+@author Claudio Bozzi
+@since 14/04/2025
+@version 2310
+/*/
+User Function envCusto()
+
+    Local lRet      := .F.
+    Local cRetPost  := ""
+    Local cUrl      := "https://kalaydo179556.fluig.cloudtotvs.com.br:2100/api/public/ecm/dataset/datasets"
+    Local oClientFluig
+    Local oJson     := JSonObject():New()
+    Local cJson     := ""
+    Local cNumProc  := ""
+
+    //Monta o client.
+    oClientFluig := FWoAuth1Fluig():New("consumerKey",;
+                                        "consumerSecret",;
+                                        "https://kalaydo179556.fluig.cloudtotvs.com.br",;
+                                        "")
+
+    //Faz o pedido de Token e define o Token e o SecretToken.
+    // oClientFluig:RequestToken()
+
+    //token chumbado pois estava falhando no request
+    oClientFluig:cSecretToken := "c7e5c17c-c4ef-45eb-82d7-b7d44b72439fad111210-2523-4f71-a8fb-78693a4457ab"
+    oClientFluig:cToken       := "097498ac-41ee-49ee-a858-e079dfb6b90f"
+    
+    DG3->(DbSetOrder(1)) // DG3_FILIAL+DG3_CDACDV
+    If DG3->(DbSeek(FWxFilial('DG3') + DG0->DG0_CDACDV))
+        cNumProc := AllTrim(DG3->DG3_XIDFLG)
+    EndIf
+
+    cJson := '{'
+    cJson += '"name": "ds_move_paraAnalise",'
+    cJson += '"constraints": ['
+    cJson += '{'
+    cJson += '"_field": "numProcess",'
+    cJson += '"_initialValue": "'+cNumProc+'",'
+    cJson += '"_finalValue": "'+cNumProc+'",'
+    cJson += '"_type": 1,'
+    cJson += '"_likeSearch": false'
+    cJson += '},'
+    cJson += '{'
+    cJson += '"_field": "versao",'
+	cJson += '"_initialValue": "'+DG0->DG0_NRVRAC+'",'
+	cJson += '"_finalValue":"'+DG0->DG0_NRVRAC+'",'
+	cJson += '"_type": 1,'
+	cJson += '"_likeSearch": false'
+    cJson += '}'
+    cJson += ']'
+    cJson += '}'
+ 
+    //Chama execução da API
+    cRetPost := oClientFluig:Post(cUrl,"",cJson)
+
+    lAux := FWJsonDeserialize(cRetPost, @oJson)
+
+    If lAux .AND. ValType(oJson) $ "O/J"
+        If AttIsMemberOf(oJson,"CONTENT") .AND. ValType(oJson:content) $ "O/J"
+            MsgInfo("Retorno FLUIG: " + oJson:content:values[1]:status + " - " + DeCodeUTF8(oJson:content:values[1]:retorno))
+            lRet := .T.
+            If oJson:content:values[1]:status == '200'
+                Reclock("DG3",.F.)
+                    DG3->DG3_XSTATU := '09'
+                DG3->(MsUnlock())
+                Reclock("DG0",.F.)
+                    DG0->DG0_XCUSTO := '1'
+                DG0->(MsUnlock())
+            EndIf
+        Else            
+            MsgInfo("Não foi possivel enviar os custos ao FLUIG!")
+            lRet := .F.
+        EndIf    
+    Else
+        MsgInfo("Erro na estrutura ao enviar para o FLUIG!")
+        lRet := .F.
+    EndIf
+
+Return lRet

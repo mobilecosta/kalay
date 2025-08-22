@@ -1,0 +1,207 @@
+MANIFESTO DE ATUALIZAÇÃO
+
+Data : 17/08/2025
+Hora : 13:58:23
+Arquivo de atualização diferencial baseado em projeto gerado pelo Configurador
+Projeto : 000007
+Descrição : LAYOUT DE ORÇAMENTO E PEDIDO DE VENDA             
+Versão : 0001
+Release de referência : 12.1.2410 
+Responsável pelo Projeto: 000000 - Administrador
+Geração do Pacote: 000000 - Administrador
+-----------------------------
+Componentes do arquivo de atualização :
+
+------------
+SIX
+
+Operação:Inclusão ou Alteração
+Tabela : ZLI
+Ordem : 1
+
+
+------------
+SX2
+
+Operação:Inclusão ou Alteração
+Tabela : ZLI
+
+
+------------
+SX3
+
+Operação:Inclusão ou Alteração
+Campo : C5_XEMBALA
+
+Operação:Inclusão ou Alteração
+Campo : C5_XPEDMIN
+
+Operação:Inclusão ou Alteração
+Campo : C5_XDISPON
+
+Operação:Inclusão ou Alteração
+Campo : C5_XCLASS 
+
+Operação:Inclusão ou Alteração
+Campo : C5_XINFIMP
+
+Operação:Inclusão ou Alteração
+Campo : C6_XOBS   
+
+Operação:Inclusão ou Alteração
+Campo : C6_XIPI   
+
+Operação:Inclusão ou Alteração
+Campo : C6_XMOEDA 
+
+Operação:Inclusão ou Alteração
+Campo : CJ_XEMBALA
+
+Operação:Inclusão ou Alteração
+Campo : CJ_XPEDMIN
+
+Operação:Inclusão ou Alteração
+Campo : CJ_XDISPON
+
+Operação:Inclusão ou Alteração
+Campo : CJ_XCLASS 
+
+Operação:Inclusão ou Alteração
+Campo : CJ_XINFIMP
+
+Operação:Inclusão ou Alteração
+Campo : CK_XOBS   
+
+Operação:Inclusão ou Alteração
+Campo : CK_XIPI   
+
+Operação:Inclusão ou Alteração
+Campo : CK_XMOEDA 
+
+Operação:Inclusão ou Alteração
+Campo : ZLI_FILIAL
+
+Operação:Inclusão ou Alteração
+Campo : ZLI_CHAVE 
+
+Operação:Inclusão ou Alteração
+Campo : ZLI_DESC  
+
+
+------------
+SX5
+
+Operação:Inclusão ou Alteração
+Tabela : 00
+Chave : Z1    
+
+Operação:Inclusão ou Alteração
+Tabela : 00
+Chave : Z2    
+
+Operação:Inclusão ou Alteração
+Tabela : 00
+Chave : Z3    
+
+Operação:Inclusão ou Alteração
+Tabela : Z1
+Chave : 01    
+
+Operação:Inclusão ou Alteração
+Tabela : Z1
+Chave : 02    
+
+Operação:Inclusão ou Alteração
+Tabela : Z1
+Chave : 03    
+
+Operação:Inclusão ou Alteração
+Tabela : Z1
+Chave : 04    
+
+Operação:Inclusão ou Alteração
+Tabela : Z2
+Chave : 01    
+
+Operação:Inclusão ou Alteração
+Tabela : Z2
+Chave : 02    
+
+Operação:Inclusão ou Alteração
+Tabela : Z2
+Chave : 03    
+
+Operação:Inclusão ou Alteração
+Tabela : Z2
+Chave : 04    
+
+Operação:Inclusão ou Alteração
+Tabela : Z3
+Chave : 01    
+
+Operação:Inclusão ou Alteração
+Tabela : Z3
+Chave : 02    
+
+
+------------
+SXB
+
+Operação:Inclusão ou Alteração
+Consulta : SM2_X 
+Tipo : 1
+Sequência : 01
+Coluna : RE
+
+Operação:Inclusão ou Alteração
+Consulta : SM2_X 
+Tipo : 2
+Sequência : 01
+Coluna : 01
+
+Operação:Inclusão ou Alteração
+Consulta : SM2_X 
+Tipo : 5
+Sequência : 01
+Coluna :   
+
+Operação:Inclusão ou Alteração
+Consulta : XZLI  
+Tipo : 1
+Sequência : 01
+Coluna : RE
+
+Operação:Inclusão ou Alteração
+Consulta : XZLI  
+Tipo : 2
+Sequência : 01
+Coluna : 01
+
+Operação:Inclusão ou Alteração
+Consulta : XZLI  
+Tipo : 5
+Sequência : 01
+Coluna :   
+
+
+------------
+Helps (hlppack*.txt)
+
+Chave : C5_XEMBALA
+Chave : C5_XPEDMIN
+Chave : C5_XDISPON
+Chave : C5_XCLASS 
+Chave : C5_XINFIMP
+Chave : C6_XOBS   
+Chave : C6_XIPI   
+Chave : C6_XMOEDA 
+Chave : CJ_XEMBALA
+Chave : CJ_XPEDMIN
+Chave : CJ_XDISPON
+Chave : CJ_XCLASS 
+Chave : CJ_XINFIMP
+Chave : CK_XOBS   
+Chave : CK_XIPI   
+Chave : CK_XMOEDA 
+Chave : ZLI_CHAVE 
+Chave : ZLI_DESC  

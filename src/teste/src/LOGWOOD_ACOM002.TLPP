@@ -1,0 +1,91 @@
+#include "Totvs.ch"
+
+//-------------------------------------------------
+/*/{Protheus.doc} ACOM002
+Rotina para comunicação com a balança, disparada a partir do ponto de entrada MVC da rotina ACOM001.
+
+@type function
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 30/08/2021
+
+@param IsEntrada, logical, Indica se é pesagem de entrada ou saída.
+/*/
+//-------------------------------------------------
+User Function ACOM002( IsEntrada as Logical )
+    
+    Local Arquivo as Character
+    Local nPeso   as Numeric
+    Local oBal    as Object
+
+    Default IsEntrada := .t.
+
+    if ( Empty(FWFldGet('Z00_FORN')) .or. Empty(FWFldGet('Z00_LOJA')) )
+        FWAlertError( 'Fornecedor não informado!', cCadastro )
+    else
+        if Empty(FWFldGet('Z01_PROD'))
+            FWAlertError( 'Produto não informado!', cCadastro )
+        else
+            arquivo := iif( isEntrada, FWFldGet('Z00_NUM') + 'E', FWFldGet('Z00_NUM') + 'S' )
+
+            oBal := TBalanca():New()
+                nPeso := oBal:Pesa()
+                if (nPeso > 0)
+                    Arquivo := oBal:GetFoto( Arquivo )
+                    if !Empty(arquivo)
+                        aAdd( aArquivos, { iif( isEntrada, FWFldGet('Z00_NUM') + 'E', FWFldGet('Z00_NUM') + 'S' ), arquivo, iif( isEntrada, 'Pesagem de Entrada', 'Pesagem de Saída' ) } )
+                    endif
+                endif                
+            fwFreeVar(@oBal)
+
+            if (nPeso > 0)
+                if IsEntrada
+                    FWFldPut( 'Z01_PENT' , nPeso     )
+                    FWFldPut( 'Z01_HENT' , Time()    )
+                    FWFldPut( 'Z01_DTENT', dDatabase )
+
+                    FWFldPut( 'Z01_PSAIDA', 0          )
+                    FWFldPut( 'Z01_SSAI'  , ''         )
+                    FWFldPut( 'Z01_DTSAI' , cTod('//') )
+                else
+                    if ( FWFldGet('Z01_PENT') == 0 )
+                        FWAlertError( 'Realize primeiro a pesagem de entrada!', cCadastro )
+                    else
+                        FWFldPut( 'Z01_PSAIDA', nPeso     )
+                        FWFldPut( 'Z01_SSAI'  , Time()    )
+                        FWFldPut( 'Z01_DTSAI' , dDatabase )
+                    endif
+                endif
+            endif
+        endif
+    endif
+
+    GETDREFRESH()
+    ProcessMessages()
+
+Return
+
+//-------------------------------------------------
+/*/{Protheus.doc} ACOM0020
+Grava arquivos de fotos no banco de conhecimento
+
+@type function
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 16/09/2021
+/*/
+//-------------------------------------------------
+User Function ACOM0020()
+
+    Local i      as numeric
+    Local oSolvs as Object
+
+    oSolvs := TSolvs():New()
+        for i := 1 to len(aArquivos)
+            oSolvs:CriaBC( aArquivos[i, 1], aArquivos[i, 2], aArquivos[i, 3], 'Z00', fwxFilial('Z00') + Z00->Z00_NUM )
+        next
+    oSolvs:Free( @oSolvs )
+
+Return

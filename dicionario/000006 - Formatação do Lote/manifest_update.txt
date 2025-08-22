@@ -1,0 +1,57 @@
+MANIFESTO DE ATUALIZAÇÃO
+
+Data : 17/08/2025
+Hora : 13:59:00
+Arquivo de atualização diferencial baseado em projeto gerado pelo Configurador
+Projeto : 000006
+Descrição : FORMATAÇÃO DO LOTE                                
+Versão : 0001
+Release de referência : 12.1.2410 
+Responsável pelo Projeto: 000000 - Administrador
+Geração do Pacote: 000000 - Administrador
+-----------------------------
+Componentes do arquivo de atualização :
+
+------------
+SX3
+
+Operação:Inclusão ou Alteração
+Campo : C2_TPOP   
+
+Operação:Inclusão ou Alteração
+Campo : C2_XLOTE  
+
+Operação:Inclusão ou Alteração
+Campo : C2_XDTVLD 
+
+
+------------
+SX6
+
+Operação:Inclusão ou Alteração
+Filial :        
+Parâmetro : MV_LOTKLY 
+
+Operação:Inclusão ou Alteração
+Filial :        
+Parâmetro : MV_LOTKLY2
+
+
+------------
+SX7
+
+Operação:Inclusão ou Alteração
+Campo : H6_OP     
+Sequência : 001
+
+Operação:Inclusão ou Alteração
+Campo : H6_OP     
+Sequência : 002
+
+
+------------
+Helps (hlppack*.txt)
+
+Chave : C2_TPOP   
+Chave : C2_XLOTE  
+Chave : C2_XDTVLD 

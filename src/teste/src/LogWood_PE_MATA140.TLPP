@@ -1,0 +1,87 @@
+#include "Totvs.ch"
+
+//-------------------------------------------------
+/*/{Protheus.doc} MA140BUT
+Inclusão de opções na EnchoiceBar
+
+@type function
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 02/09/2021
+
+@see https://tdn.totvs.com/pages/releaseview.action?pageId=6085354
+
+@return Array, Array com os novos botões
+/*/
+//-------------------------------------------------
+User Function MA140BUT()
+    
+    Local aButtons as Array
+
+    aButtons := {}
+
+    if FindFunction('U_ACOM001A')
+        aadd(aButtons, {'RECALC', { || U_ACOM001A() }, 'Romaneio', 'Romaneio'})
+    endif
+
+Return aButtons
+
+//-------------------------------------------------
+/*/{Protheus.doc} SF1140I
+Ponto de Entrada utilizado na atualização do cabeçalho do Pré-Documento de Entrada.
+
+@type function
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 03/09/2021
+
+@see https://tdn.totvs.com/pages/releaseview.action?pageId=6085617
+/*/
+//-------------------------------------------------
+User Function SF1140I()
+
+    if (PARAMIXB[1] .or. PARAMIXB[2])
+        if findFunction('U_ACOM001B') .and. FindClass('TSolvs')
+            oSolvs := TSolvs():New()
+                if !oSolvs:SafeRun( { || U_ACOM001B( 3, SF1->F1_DOC, SF1->F1_SERIE, SF1->F1_FORNECE, SF1->F1_LOJA, oSolvs ) } )
+                    if !isBlind()
+                        fwAlertError( oSolvs:GetSimpleError(), cCadastro )
+                    endif
+                endif
+            TSolvs():Free( @oSolvs )
+        endif
+    endif
+
+Return
+
+//-------------------------------------------------
+/*/{Protheus.doc} SD1140E
+No momento da exclusão/deleção da pré-nota.
+
+@type function
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 03/09/2021
+
+@see https://tdn.totvs.com/display/public/PROT/TTEN24_DT_PONTO_ENTRADA_SD1140E
+/*/
+//-------------------------------------------------
+User Function SD1140E()
+
+    Local oSolvs as Object
+
+    if findFunction('U_ACOM001B') .and. FindClass('TSolvs')
+        oSolvs := TSolvs():New()
+            if !oSolvs:SafeRun( { || U_ACOM001B( 5, SF1->F1_DOC, SF1->F1_SERIE, SF1->F1_FORNECE, SF1->F1_LOJA, oSolvs ) } )
+                if !isBlind()
+                    fwAlertError( oSolvs:GetSimpleError(), cCadastro )
+                endif
+            endif
+        TSolvs():Free( @oSolvs )
+    endif
+
+Return
+

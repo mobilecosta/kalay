@@ -1,0 +1,85 @@
+#include "protheus.ch"
+
+/*/{Protheus.doc} nomeFunction
+Ponto de entrada MVC
+@type user function
+@author Claudio Bozzi
+@since 13/02/2025
+@version 2310
+/*/
+User Function PCPA200()
+
+    Local oModel := If(Type("ParamIXB[1]") == "O", ParamIXB[1], Nil)
+    Local cLocal := If(Type("ParamIXB[2]") == "C", ParamIXB[2], "" )
+    Local cForm	 := If(Type("ParamIXB[3]") == "C", ParamIXB[3], "" )
+    Local nOpc	 := If(ValType(oModel) == "O", oModel:GetOperation(), 0)
+    Local xRet	 := .T.
+    Local nCont  := 0
+    Local nSoma  := 0
+
+    Local aArea  := GetArea()
+
+    Local aSaveLines	:= FWSaveRows()
+
+    Do Case
+
+        Case cLocal == "FORMPOS" .and. cForm == "SG1_DETAIL" .and. (nOpc == 3 .or. nOpc == 4)
+
+            For nCont := 1 To oModel:Length()
+
+                oModel:GoLine(nCont)
+
+                nTamAcols := len(aCols[nCont])
+
+                If ! aCols[nCont][nTamAcols]
+
+                    nSoma += FWFldGet("G1_XPERCEN")
+
+                    SB1->(dbSetOrder(1))
+                    SB1->(dbSeek( xFilial('SB1') + FWFldGet("G1_COMP") )) 
+
+                    If FWFldGet("G1_XPERCEN") = 0 .And. ! SB1->B1_TIPO $ SuperGetMV("MV_TPPERCEN",.F.,"EM")
+                        Help(Nil, Nil,"Atenção",Nil,"Existem itens que não tiveram o percentual informado.",1,0,Nil, Nil, Nil, Nil, Nil, {"Revise os percentuais aplicados aos componentes."})
+                        xRet := .F.
+                    EndIf
+
+                EndIf
+
+            Next
+
+            If nSoma != 100
+                Help(Nil, Nil,"Atenção",Nil,"Soma dos percentuais atingiu " + cValToChar(nSoma) + "%",1,0,Nil, Nil, Nil, Nil, Nil, {"Revise os percentuais aplicados aos componentes."})
+                xRet := .F.
+            EndIf
+
+        Case cLocal == "FORMPRE" .and. cForm == "SG1_DETAIL" .and. (nOpc == 3 .or. nOpc == 4)
+
+            If ParamIXB[5] == "CANSETVALUE" .And. ParamIXB[6] == "G1_XPERCEN" 
+
+                SB1->(dbSetOrder(1))
+                SB1->(dbSeek( xFilial('SB1') + FWFldGet("G1_COMP") )) 
+
+                If SB1->B1_TIPO $ SuperGetMV("MV_TPPERCEN",.F.,"EM")
+                    xRet := .F.
+                EndIf
+
+            EndIf
+ 
+            If ParamIXB[5] == "SETVALUE" .And. ParamIXB[6] == "G1_XPERCEN" 
+
+                If FWFldGet("NQTBASE") = 0
+                    Help(Nil, Nil,"Atenção",Nil,"Quantidade base não informada!",1,0,Nil, Nil, Nil, Nil, Nil, {"Informe-a antes dos percentuais."})
+                    xRet := .F.
+                Else
+                    oModel:SetValue( "G1_QUANT", FWFldGet("NQTBASE") * ( FWFldGet("G1_XPERCEN") / 100 ) )
+                EndIf
+
+            EndIf
+
+    EndCase
+
+    FWRestRows(aSaveLines)
+
+    RestArea(aArea)
+
+Return xRet

@@ -1,0 +1,191 @@
+#include "Totvs.Ch"
+
+//-------------------------------------------------
+/*/{Protheus.doc} AFAT001
+Rotina para processamento de peso complementar.
+
+@type function
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 13/09/2021
+/*/
+//-------------------------------------------------
+User Function AFAT001()
+
+    Local DataDe  as Date
+    Local DataAte as Date
+
+    Private cCadastro as Character
+    Private oSolvs    as Object
+    
+    cCadastro := 'Pesagem Clientes'
+
+    oSolvs := TSolvs():New()
+        if CriaTemp( DataDe, DataAte )
+            CriaTela()
+        endif
+    oSolvs:Free( @oSolvs )
+
+    if GetParam( @DataDe, @DataAte )
+    endif
+
+Return
+
+Static Function CriaTela()
+    
+    Local bConfirm  as CodeBlock
+    Local bSair     as CodeBlock
+    //Local bRec      as CodeBlock
+    Local oModal    as Object
+    
+    Private Processar as Logical
+    Private oGrid     as Object
+
+    Processar := .f.
+
+    bSair := { || oModal:DeActivate() }
+    bConfirm := { || Processar := .T., oModal:DeActivate() }
+    
+    oModal  := FWDialogModal():New()       
+        oModal:setTitle( cCadastro )
+        oModal:setSubTitle("Informe os pesos retornados pelos clientes.")
+        oModal:EnableFormBar( .T. )
+        oModal:SetCloseButton( .F. )
+        oModal:SetEscClose( .F. )
+        oModal:enableAllClient()
+    
+        oModal:createDialog()
+        oModal:CreateFormBar()
+        oModal:AddButton( 'Confirmar', bConfirm, 'Confirmar', , .T., .F., .T., )
+        oModal:AddButton( 'Cancelar' , bSair   , 'Cancelar' , , .T., .F., .T., )
+
+        oGrid := FwBrowse():New( oModal:getPanelMain() )
+            oGrid:SetDataArray(.t.)
+			oGrid:SetArray( Registros )
+            oGrid:DisableFilter()
+            oGrid:DisableReport()
+            oGrid:DisableConfig()
+            oGrid:DisableLocate()
+            oGrid:DisableSeek()
+            
+            oGrid:SetLineHeight(15)
+
+            Colunas := {}
+            aAdd( Colunas, oSolvs:NovaColuna({ || oGrid:oData:aArray[ oGrid:At(), 02 ]}, RetTitle( "Z01_NUM"   ), TamSx3( "Z01_NUM"   )[01], "C", PesqPict( "Z01", "Z01_NUM"   )) )
+            aAdd( Colunas, oSolvs:NovaColuna({ || oGrid:oData:aArray[ oGrid:At(), 03 ]}, RetTitle( "Z01_ITEM"  ), TamSx3( "Z01_ITEM"  )[01], "C", PesqPict( "Z01", "Z01_ITEM"  )) )
+            aAdd( Colunas, oSolvs:NovaColuna({ || oGrid:oData:aArray[ oGrid:At(), 04 ]}, RetTitle( "Z01_PROD"  ), TamSx3( "Z01_PROD"  )[01], "C", PesqPict( "Z01", "Z01_PROD"  )) )
+            aAdd( Colunas, oSolvs:NovaColuna({ || oGrid:oData:aArray[ oGrid:At(), 05 ]}, RetTitle( "B1_DESC"   ), TamSx3( "B1_DESC"   )[01], "C", PesqPict( "SB1", "B1_DESC"   )) )
+            aAdd( Colunas, oSolvs:NovaColuna({ || oGrid:oData:aArray[ oGrid:At(), 06 ]}, 'Peso Efetivo'         , TamSx3( "Z01_PENT"  )[01], "N", PesqPict( "Z01", "Z01_PENT"  )) )
+
+            oGrid:SetColumns( Colunas )
+        oGrid:Activate()
+    oModal:Activate()
+Return
+
+//-------------------------------------------------
+/*/{Protheus.doc} CriaTemp
+Cria tabela temporária via query
+
+@type function
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 13/09/2021
+
+@param DataDe, Date, Início do Período
+@param DataAte, Date, Fim do Período
+@param Registros, Array, Registros retornados 
+
+@return logical, Verdadeiro ou falso para criação da tabela
+/*/
+//-------------------------------------------------
+Static Function CriaTemp( DataDe as Date, DataAte as Date, Registros as Array ) as Logical
+
+    Local cQuery as Character
+    Local Ret    as Logical
+
+    Registros := {}
+
+    cQuery := "SELECT "
+    cQuery += "	SD2.D2_FILIAL, SD2.D2_DOC, SD2.D2_SERIE,  "
+    cQuery += "	SF2.F2_CLIENTE, SF2.F2_LOJA, SD2.D2_PEDIDO,  "
+    cQuery += "	SD2.D2_ITEMPV, SD2.D2_COD, "
+    cQuery += "	SB1.B1_DESC, SD2.D2_QUANT AS PESO1, "
+    cQuery += "	0 AS PESO2, 0 AS PESO3, 0 AS DIF "
+    cQuery += "FROM "
+    cQuery += "	" + RetSqlName('SD2') + " SD2 "
+    cQuery += "INNER JOIN " + RetSqlName('SF2') + " SF2 ON "
+    cQuery += "	SF2.F2_FILIAL = SD2.D2_FILIAL "
+    cQuery += "	AND SF2.F2_DOC = SD2.D2_DOC "
+    cQuery += "	AND SF2.F2_sERIE = SD2.D2_SERIE "
+    cQuery += "	AND SF2.F2_TIPO = 'N' "
+    cQuery += "	AND SF2.F2_EMISSAO BETWEEN '" + dTos(DataDe) + "' AND '" + dTos(DataAte) + "' "
+    cQuery += "	AND SF2.D_E_L_E_T_ = ' ' "
+    cQuery += "INNER JOIN " + RetSqlName('SB1') + " SB1 ON "
+    cQuery += "	SB1.B1_FILIAL = '" + fwXFilial('SB1') + "' "
+    cQuery += "	AND SB1.B1_COD = SD2.D2_COD "
+    cQuery += "	AND SB1.D_E_L_E_T_ = ' ' "
+    cQuery += "WHERE "
+    cQuery += "	SD2.D2_FILIAL = '" + fwXFilial('SD2') + "' "
+    cQuery += "	AND SD2.D_E_L_E_T_ = ' ' "
+    cQuery += "	AND NOT EXISTS( "
+    cQuery += "		SELECT "
+    cQuery += "			SC6.R_E_C_N_O_ AS REG "
+    cQuery += "		FROM "
+    cQuery += "			" + RetSqlName('SC6') + " SC6 "
+    cQuery += "		WHERE "
+    cQuery += "			SC6.C6_FILIAL = SD2.D2_FILIAL "
+    cQuery += "			AND SC6.C6_NFORI = SD2.D2_DOC "
+    cQuery += "			AND SC6.C6_SERIORI = SD2.D2_SERIE "
+    cQuery += "			AND SC6.C6_ITEMORI = SD2.D2_ITEM "
+    cQuery += "			AND SC6.D_E_L_E_T_ = ' ' "
+    cQuery += "	) "
+    cQuery += "ORDER BY  "
+    cQuery += "	SD2.D2_FILIAL, SD2.D2_DOC, SD2.D2_SERIE,  "
+    cQuery += "	SF2.F2_CLIENTE, SF2.F2_LOJA "
+
+    ret := .t.
+    if !oSolvs:CriaTmpTable( cQuery )
+        ret := .f.
+        FWAlertError(oSolvs:GetLastError(), "Tabela temporária")
+    endif
+
+Return ret
+
+//-------------------------------------------------
+/*/{Protheus.doc} GetParam
+Rotina para definição de parâmetros da rotina.
+
+@type function
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 13/09/2021
+
+@param DataDe, Date, Data de início [ passado por referencia ]
+@param DataAte, Date, Data de final [ passado por referencia ]
+
+@return logical, Verdadeiro ou Falso
+/*/
+//-------------------------------------------------
+Static Function GetParam( DataDe as Date, DataAte as Date ) as Logical
+
+    Local aRet      as Array
+    Local aParamBox as Array
+    Local lRet      as Logical
+
+    aRet      := {}
+    aParamBox := {}
+    lRet      := .f.
+
+    aAdd( aParamBox, { 1, "Data de" , cTod('//'), ""   , "" , "", "", 100, .T. } ) // Tipo caractere
+    aAdd( aParamBox, { 1, "Data até", cTod('//'), ""   , "" , "", "", 100, .T. } ) // Tipo caractere
+
+    If ParamBox( aParamBox, "Informe o período", @aRet, /*bok*/, /*abuttons*/, .t., /**/, /**/, /**/, /**/, .f., .f. )
+        dataDe := aRet[1]
+        dataAte := aRet[2]
+        lRet := .t.
+    endif
+
+Return lRet

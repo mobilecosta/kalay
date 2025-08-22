@@ -1,0 +1,1191 @@
+#include "totvs.ch"
+#include 'tlpp-core.th'
+#include 'tlpp-rest.th'
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs
+Classe com funcões basicas
+
+@type class
+@version 4.1
+@author Lucas José Corrêa Chagas
+
+@since 23/08/2021
+/*/
+//-------------------------------------------------
+Class TSolvs from longclassname
+
+	Private Data Areas       as array
+	private Data tenantId    as Array
+	private Data simpleError as Character
+	private Data detailError as Character
+	private Data Cod64       as Logical	
+	private Data Rpc         as Logical
+	private Data WsStatus    as Numeric
+	Private Data TmpTable    as Object
+
+	protected Data cClassName as Character
+	protected Method ErroExecAuto( Alog as Array )
+	protected Method ValidaChave( Tags as Array, Campos as Character, Qtde as Numeric ) as Logical
+
+	public Method New() constructor
+	public Method Clear()
+
+	public Method SetWsStatus( novoStatus as Numeric )
+	public Method GetWsStatus() as Numeric
+
+	public Method GetLastError( asJson as Logical ) as Character
+	public Method GetSimpleError( asJson as Logical ) as Character
+	public Method GetDetailError( asJson as Logical ) as Character
+	public Method TrataErro( oError as Object )
+	public Method SendMail( Emails as Array )
+	public Method ClassName() as Character
+
+	public Method ValidaUser( login as character, senha as character ) as logical
+	public Method SetViaRPC( Emp as Character, Fil as Character ) as Logical
+    public Method SetViaRPCbyCnpj( Cnpj as Character ) as Logical
+	public Method KillRpc()
+	public Method GetCod64() as Logical
+	public Method SetHeader( oHeader as Json )
+	public Method CriaJsonObj( cJson as Character ) as json
+	public Method ConverteJson( cJson as Character ) as Character
+	public Method CriaBC( Nome as Character, Arquivo as Character, Descricao as Character, Tabela as Character, Chave as Character ) as Logical
+	public Method NovaColuna( Data as codeBlock, Titulo as Character, Tamanho as Numeric, Tipo as Character, Picture as Character ) as Object
+	public Method SafeRun( Bloco as CodeBlock, TelaProc as Logical  ) as Logical
+	public Method IsRpc() as Logical
+	public Method AbreArea( Tabela as Character, Indice as Numeric )
+	public Method GetTmpTable() as Object
+	public Method CriaTmpTable( Query as Character ) as Logical
+	public Method Free( Instancia as Object )
+
+	public Method CapturaIntelbas( Usuario as Character, Senha as Character, Url as Character, Canal as Character, Nome as Character ) as Character
+
+endclass
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::CapturaIntelbas( Usuario as Character, Senhas as Character, Url as Character, Nome as Character ) as Character
+Tenta efetivamente capturar a informação da foto da camera intelbras de acordo com a URL.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 15/09/2021
+
+@param Usuario, Character, Usuário do DVR
+@param Senha, Character, Senha do DVR
+@param Url, Character, Url do DVR
+@param Canal, Character, Câmera a ser utilizada do DVR
+@param Nome, Character, Nome do DVR
+
+@return Character, Foto capturada
+
+@see https://tdn.totvs.com/display/tec/WaitRun
+/*/
+//-------------------------------------------------
+Method CapturaIntelbas( Usuario as Character, Senha as Character, Url as Character, Canal as Character, Nome as Character ) as Character Class TSolvs
+
+	Local AppCap     as Character
+	Local cDrive     as Character
+	Local cDiretorio as Character
+	Local cNome      as Character
+	Local cExtensao  as Character
+	Local cParam     as Character
+	Local Retorno    as Character
+
+	AppCap := SuperGetMv('LW_FOTO', .f., 'C:\Captura\LogwoodFotos.exe') // local do arquivo na maquina do smartclient
+	Retorno := ''
+
+	if File( appCap )
+		cParam := ' user=' + alltrim(Usuario) + ' '
+		cParam += 'pass=' + alltrim(Senha) + ' '
+		cParam += 'url=' + alltrim(url) + ' '
+		cParam += 'canal=' + alltrim(canal) + ' '
+		cParam += 'nome=' + alltrim(nome)
+
+		SplitPath ( AppCap, @cDrive, @cDiretorio, @cNome, @cExtensao )
+
+		Retorno := cDrive + cDiretorio + alltrim(nome) + '.jpg'
+		if file( retorno )
+			fErase( retorno )
+		endif
+
+		WaitRun( AppCap + cParam , 1 )
+		if !file( retorno )
+			retorno := ''
+		endif
+		//ShellExecute( 'open', appCap, cParam, cDrive + cDiretorio, 1 )
+	endif
+
+Return Retorno
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::CriaTmpTable
+Cria tabela temporária no protheus
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 13/09/2021
+
+@param Query, character, Query para processamento
+
+@return Logical, Verdadeiro ou Falso
+/*/
+//-------------------------------------------------
+Method CriaTmpTable( Query as Character ) as Logical Class TSolvs
+
+	Local Est  as Array
+	Local Pesq as Character
+	Local Erro as CodeBlock
+	Local Ret  as Logical
+	Local i    as numeric
+
+	Pesq := ''
+	Ret := .t.
+	i := 0
+
+	Erro := ErrorBlock( { |oError| Self:TrataErro( oError ) } )
+	Begin SEQUENCE
+		if ( Self:TmpTable != Nil )
+			Self:TmpTable:Delete()
+			fwFreeVar( Self:TmpTable ) 
+		endif
+
+		Pesq := mpsysOpenQuery( ChangeQuery(Query) )
+		Est := (pesq)->(dbStruct())
+
+		Self:TmpTable := FWTemporaryTable():New( GetNextAlias(), Est )
+		Self:TmpTable:Create()
+
+		while !(Pesq)->(EOF())
+			if RecLock(Self:TmpTable:GetAlias(), .t.)
+				for i := 1 to len(Est)
+					&(Self:TmpTable:GetAlias() + '->' + Est[ i, 1 ]) := &(Pesq + '->' + Est[ i, 1 ])
+				next
+
+				(Self:TmpTable:GetAlias())->(msUnlock())
+			endif
+
+			(Pesq)->(dbSkip())
+		enddo
+
+	Recover
+		if ( Self:TmpTable != Nil )
+			Self:TmpTable:Delete()
+			fwFreeVar( Self:TmpTable ) 
+		endif
+	End SEQUENCE
+	ErrorBlock( Erro )
+
+	if !empty(pesq)
+		if ( Select(pesq) > 0 )
+			(Pesq)->( dbCloseArea() )
+		endif
+	endif
+
+Return ret
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::GetTmpTable() as Object
+Retorna objeto TmpTable da Classe
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 13/09/2021
+
+@return Object, Objeto TmpTable
+/*/
+//-------------------------------------------------
+Method GetTmpTable() as Object Class TSolvs
+Return Self:TmpTable
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::New
+Construtor da Classe.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 23/08/2021
+
+@return Object, Instancia da Classe
+/*/
+//-------------------------------------------------
+Method New() Class TSolvs
+
+	Self:cClassName := 'TSolvs'
+	Self:Clear()
+
+Return Self
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::Clear
+Limpa todas as variáveis da Classe.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 23/08/2021
+/*/
+//-------------------------------------------------
+Method Clear() Class TSolvs
+
+	Local i as Numeric
+
+	if (valType(Self:Areas) == 'A')
+		for i := 1 to len(self:Areas)
+			RestArea( Self:Areas[i] )
+		next
+	endif
+
+	Self:simpleError := ''
+	Self:detailError := ''
+	Self:WsStatus  := 200
+
+	if (valType(Self:Rpc) == 'U')
+		Self:Rpc := .F.
+	else
+		Self:Rpc := Self:Rpc
+	endif
+
+	Self:Cod64 := .f.
+	Self:tenantId := {}	
+
+	Self:Areas := {}
+
+	if ( Self:TmpTable != Nil )
+		Self:TmpTable:Delete()
+		fwFreeVar( Self:TmpTable ) 
+	endif
+
+return
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::GetLastError
+Retorna último erro contido na variável LastError.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 23/08/2021
+
+@param asJson, logical, Define se o retorno é em jSon
+
+@return Character, Erro gravado em LastError
+/*/
+//-------------------------------------------------
+Method GetLastError( asJson as Logical ) as Character Class TSolvs
+
+    Local REtorno as Character
+    Local oJson   as Object
+
+    default asJson := .F.
+
+    Retorno := fwNoAccent(alltrim(Self:simpleError) + CRLF + CRLF + alltrim(self:detailError))
+	Retorno := StrTran( Retorno , '"', "'" )
+
+    if asJson
+        oJson := JsonObject():New()
+        oJson['code'] := Self:GetWsStatus()
+        oJson['message'] := fwNoAccent(StrTran( Self:simpleError , '"', "'" ))
+		oJson['detail'] := fwNoAccent(StrTran( Self:detailError , '"', "'" ))
+        retorno := oJson:ToJson()
+        fwFreeVar(@oJson)
+    endif
+
+return Retorno
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::TrataErro
+Trata Erro gerado durante processamento.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 23/08/2021
+
+@param oError, object, Objeto de erro padrão do ADVPL / TL++
+/*/
+//-------------------------------------------------
+Method TrataErro( oError as Object ) class TSolvs
+
+	if InTransact() // se estiver em uma transação de banco, aborta a mesma
+		DisarmTransaction()
+		EndTran()
+	endif
+
+	Self:simpleError := oError:Description
+	Self:detailError := oError:ERRORSTACK
+
+	Break
+
+Return
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::SetWsStatus
+Define conteúdo da variável WsStatus.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 23/08/2021
+
+@param novoStatus, numeric, novo status a ser recebido
+/*/
+//-------------------------------------------------
+Method SetWsStatus( novoStatus as Numeric ) class TSolvs
+	Self:WsStatus := novoStatus
+return
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::GetWsStatus
+Retorna o conteúdo de WsStatus.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 23/08/2021
+
+@return Numeric, Conteúdo de WsStatus
+/*/
+//-------------------------------------------------
+Method GetWsStatus() class TSolvs
+return Self:WsStatus
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::SendMail
+Rotina para envio de e-mails
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 23/08/2021
+
+@param Emails, array, Array com e-mails a serem enviados
+/*/
+//-------------------------------------------------
+Method SendMail( Emails as Array ) class TSolvs
+
+	Local Anexos   as Array
+	Local Serv     as Array
+	Local ErrorS   as Character
+	Local RELACNT  as Character
+	Local RELAUTH  as Logical
+	Local RELFROM  as Character
+	Local RELPSW   as Character
+	Local RELSERV  as Character
+	Local RELTIME  as Numeric
+	Local ErrorN   as numeric
+	Local i        as numeric
+	Local j        as numeric
+
+	Local MSG      as Object
+	Local Smtp     as Object
+
+	RELACNT := SuperGetMv( 'MV_RELACNT', .F., '' )
+	RELAUTH := SuperGetMv( 'MV_RELAUTH', .F., .F.)
+	RELFROM := SuperGetMv( 'MV_RELFROM', .F., '' )
+	RELPSW  := SuperGetMv( 'MV_RELPSW' , .F., '' )
+	RELSERV := SuperGetMv( 'MV_RELSERV', .F., '' )
+	RELTIME := SuperGetMv( 'MV_RELTIME', .F., 0  )
+
+	Serv := StrTokArr( RELSERV, ':' )
+	ErrorN := -1
+	ErrorS := ''
+
+	SMTP := TMailManager():New()
+	SMTP:Init( "", Serv[1], RELACNT, RELPSW, 0, val(Serv[2]) )
+
+	ErrorN := SMTP:SetSmtpTimeOut( RELTIME )
+	If ( ErrorN != 0 )
+		ErrorS := "Falha ao setar o time out - " + SMTP:GetErrorString( ErrorN )
+	EndIf
+
+	if Empty(ErrorS)
+		ErrorN := SMTP:SmtpConnect()
+		If ( ErrorN != 0 )
+			ErrorS := "Falha ao conectar no e-mail - " + SMTP:GetErrorString( ErrorN )
+		EndIf
+
+		if Empty(ErrorS)
+			if RELAUTH
+				ErrorN := SMTP:SmtpAuth( RELACNT, RELPSW )
+				if ( ErrorN != 0 )
+					ErrorS := "Não foi possível autenticar no servidor SMTP: " + SMTP:GetErrorString( ErrorN )
+				endif
+			endif
+
+			if Empty(ErrorS)
+				Msg := TMailMessage():New()
+
+				i := 1
+				while (i <= len(Emails)) .and. Empty(ErrorS)
+
+					Anexos := aClone(Emails[i,3])
+					Msg:Clear()
+
+					Msg:cFrom    := RELACNT
+					Msg:cTo      := Emails[i, 2]
+					Msg:cSubject := Emails[i, 4]
+					Msg:cBody    := Emails[i, 1]
+
+					j := 1
+					while (j <= len(Anexos)) .and. Empty(errors)
+						if ( Msg:Attach( Anexos[j, 1], "", 0 ) < 0 )
+							ErrorS := 'Erro ao anexar arquivo ao e-mail!'
+						else
+							if Anexos[j, 2]
+								Msg:AddAttHTag( "Content-Disposition: inline; filename=" + Anexos[j, 3] )
+								Msg:AddCustomHeader("Content-ID", Anexos[j, 4])
+							else
+								Msg:AddAtthTag( 'Content-Disposition: attachment; filename=' + Anexos[j, 3] )
+							endif
+						endif
+						j++
+					enddo
+
+					if Empty(ErrorS)
+						ErrorN := MSG:Send( SMTP )
+						if (ErrorN != 0)
+							ErrorS := "Erro ao enviar o e-mail: " + SMTP:GetErrorString( ErrorN )
+						endif
+					endif
+
+					i++
+				enddo
+			endif
+		endif
+	endif
+
+	if ( Msg != nil )
+		FwFreeVar(@Msg)
+	endif
+
+	if ( Smtp != nil )
+		SMTP:SmtpDisconnect()
+		FwFreeVar(@Smtp)
+	endif
+
+	if !Empty(Errors)
+		UserException(Errors)
+	endif
+
+Return
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::ClassName
+Retorna o nome da Classe.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 23/08/2021
+
+@return character, Nome da Classe
+/*/
+//-------------------------------------------------
+Method ClassName() Class TSolvs
+return Self:cClassName
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::ValidaUser
+Valida usuário e senha repassado para login.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 23/08/2021
+
+@param login, character, Login para acesso ao protheus
+@param senha, character, Senha para acesso ao Protheus
+
+@return Logical, Verdadeiro ou Falso
+/*/
+//-------------------------------------------------
+Method ValidaUser( login as character, senha as character ) as Logical Class TSolvs
+
+	Local Ret  as Logical
+	Local Erro as CodeBlock
+
+	Ret := .f.
+
+	Erro := ErrorBlock( { |oError| Self:TrataErro( oError ) } )
+	Begin SEQUENCE
+		self:KillRpc()
+
+        openSm0()
+        SM0->(dbGoTop())
+
+		RpcSetType(3)
+		if RpcSetEnv( SM0->M0_CODIGO, SM0->M0_CODFIL, login, senha )
+			ret := .t.
+		else
+			RpcClearEnv()
+			cEmpAnt := nil
+    		cFilAnt := nil
+		endif
+	End SEQUENCE
+	ErrorBlock( Erro )
+
+Return ret
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::SetViaRPC( Emp as Character, Fil as Character ) as Logical
+Define empresa e Filial em tempo de Execução.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 23/08/2021
+
+@return Logical, Verdadeiro ou Falso
+/*/
+//-------------------------------------------------
+Method SetViaRPC( Emp as Character, Fil as Character ) as Logical Class TSolvs
+
+	Local Ret as Logical
+
+	Ret := .F.
+
+	OpenSm0()
+	SM0->(dbGotop())
+	if SM0->(dbSeek( Emp + Fil ))
+		if (Type('cEmpAnt') == 'U')
+			if RpcSetEnv( SM0->M0_CODIGO, SM0->M0_CODFIL )
+				cEmpAnt := SM0->M0_CODIGO
+				cFilAnt := alltrim(SM0->M0_CODFIL)
+				Self:Clear()
+				Self:tenantId := { cEmpAnt, cFilAnt }
+
+				Self:Rpc := .T.
+				ret := .T.
+			endif
+		else
+			cEmpAnt := SM0->M0_CODIGO
+			cFilAnt := alltrim(SM0->M0_CODFIL)
+			Self:Clear()
+			Self:tenantId := { cEmpAnt, cFilAnt }
+
+			Self:Rpc := .T.
+			ret := .T.
+		endif
+	endif
+
+Return ret
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::KillRpc
+Libera ambiente criado pela classe.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 23/08/2021
+/*/
+//-------------------------------------------------
+Method KillRpc() Class TSolvs
+
+	if (Self:Rpc)
+		RpcClearEnv()
+
+        cEmpAnt := nil
+        cFilAnt := nil
+        Self:Rpc := .f.
+	endif
+
+Return
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::ErroExecAuto
+Pega o Array passado por parâmetro e converte em texto levantando uma excessão
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 23/08/2021
+
+@param Alog, array, Array com erro em Execauto.
+/*/
+//-------------------------------------------------
+Method ErroExecAuto( Alog as Array ) Class TSolvs
+
+	Local j as numeric
+	local cErro as Character
+
+	cErro := 'Erro ao executar processamento automático.'
+
+	For j := 1 To Len(aLog)
+		If !Empty(cErro)
+			cErro += CRLF
+		EndIf
+		cErro += Alog[j]
+	Next j
+
+	UserException(alltrim(cErro))
+
+Return
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::SetViaRPCbyCnpj( Cnpj as Character ) as Logical
+Define empresa e Filial em tempo de Execução.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 23/08/2021
+
+@return Logical, Verdadeiro ou Falso
+/*/
+//-------------------------------------------------
+Method SetViaRPCbyCnpj( Cnpj as Character ) as Logical Class TSolvs
+
+    Local Ret as Logical
+
+	Ret := .F.
+
+    OpenSm0()
+    SM0->(dbGotop())
+
+    While !SM0->(EOF())
+        if (FwNoAccent(AllTrim(SM0->M0_CGC)) == FwNoAccent(alltrim(CNPJ)))
+            if (Type('cEmpAnt') == 'U')
+                RpcSetType(3)
+                if RpcSetEnv( SM0->M0_CODIGO, SM0->M0_CODFIL )
+                    cEmpAnt := SM0->M0_CODIGO
+                    cFilAnt := alltrim(SM0->M0_CODFIL)
+                    Self:Clear()
+					Self:tenantId := { cEmpAnt, cFilAnt }
+
+                    Self:Rpc := .T.
+                    ret := .T.
+                endif
+            else
+                cEmpAnt := SM0->M0_CODIGO
+                cFilAnt := alltrim(SM0->M0_CODFIL)
+                Self:Clear()
+				Self:tenantId := { cEmpAnt, cFilAnt }
+
+                Self:Rpc := .T.
+                ret := .T.
+            endif
+
+            exit
+        else
+            SM0->(dbSkip())
+        endif
+    enddo
+
+Return ret
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::ValidaChave( Tags as Array, Campos as Character, Qtde as Numeric ) as Logical
+Valida a chave enviada pelo json.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 27/08/2021
+
+@return Logical, .t. ou .f.
+/*/
+//-------------------------------------------------
+Method ValidaChave( Tags as Array, Campos as Character, Qtde as Numeric ) as Logical Class TSolvs
+	
+	Local Valido as Logical
+    Local I      as Numeric
+
+    Valido := (len( Tags ) == Qtde)
+
+    if valido
+        i := 1
+        while valido .and. (i <= len(Tags) )
+            Valido := ( Tags[i] $ Campos )
+
+            i++
+        enddo
+    endif
+
+Return Valido
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::GetCod64() as Logical
+Retorna o conteúdo da propriedade Cod64.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 27/08/2021
+
+@return Logical, .T. ou .F.
+/*/
+//-------------------------------------------------
+Method GetCod64() as Logical Class TSolvs
+Return Self:Cod64
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::SetHeader
+A partir do Header do Json aplica informações como empresa e filial ao sistema.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 27/08/2021
+
+@param oHeader, json, Objeto Json
+/*/
+//-------------------------------------------------
+Method SetHeader( oHeader as Json ) class TSolvs
+
+	if (valType( oHeader['tenantId'] ) == 'U')
+		Self:SetWsStatus( 406 )
+		UserException("Chave do header 'tenantId' não enviada!")
+	endif
+
+	if (valType( oHeader['tenantId'] ) != 'C')
+		Self:SetWsStatus( 406 )
+		UserException("Chave do header 'tenantId' deve ser do tipo string!")
+	endif
+
+	Self:tenantId := StrTokArr( oHeader['tenantId'], ',' )
+	if ( len(Self:tenantId) != 2 )
+		Self:SetWsStatus( 406 )
+		UserException("Verifique o conteúdo da chave 'tenantId', pois o mesmo deve funcionar no formato 'Empresa,Filial'. Exemplo: '99,01'.")
+	endif
+
+	if !Self:SetViaRPC( Self:tenantId[1], Self:tenantId[2] )
+		Self:SetWsStatus( 406 )
+		UserException("Verifique o CNPJ informado, o mesmo é inválido!")
+	endif
+
+	if (valType( oHeader['encode64'] ) != 'U')
+		Self:Cod64 := (oHeader['encode64'] == 'true')
+	endif
+
+Return
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::CriaJsonObj( cJson as Character ) as json
+Cria objeto json de acordo com o parâmetro informado.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 27/08/2021
+
+@return Json, objeto do tipo JsonObject
+/*/
+//-------------------------------------------------
+Method CriaJsonObj( cJson as Character ) as json Class TSolvs
+
+	Local cOrigem as Character
+	Local Ret     as Character
+	Local oRet    as Json
+
+	oRet := JsonObject():New()
+
+	if Self:Cod64
+		cOrigem := Decode64( cJson )
+	else
+		cOrigem := cJson
+	endif
+
+	ret := oRet:fromJson( cOrigem )
+
+	if (ValType(ret) != "U")
+		fwFreeVar( @oRet )
+
+		Self:SetWsStatus( 406 )
+        UserException(ret)
+	endif
+
+Return oRet
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::ConverteJson( cJson as Character ) as Character
+Converte objeto json em texto json levando em consideração propriedade Cod64.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 27/08/2021
+
+@return Character, Retorno em forma de texto
+/*/
+//-------------------------------------------------
+Method ConverteJson( cJson as Character ) as Character Class TSolvs
+Return iif( Self:Cod64, encode64( cJson ), cJson )
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::CriaBC( Nome as Character, Arquivo as Character, Descricao as Character, Tabela as Character, Chave as Character ) as Logical
+Cria bancop de conhecimento amarrado à tabela e registro repassados no parâmetro.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 02/09/2021
+
+@param Nome, Character, Nome do Documento
+@param Arquivo, Character, Arquivo a ser anexado
+@param Descricao, Character, Descrição do conteúdo do arquivo
+@param Tabela, Character, Tabela a ser vinculada
+@param Chave, Character, Chave do registro utilizado para vinculação
+
+@return Character, Código do Objeto
+/*/
+//-------------------------------------------------
+Method CriaBC( Nome as Character, Arquivo as Character, Descricao as Character, Tabela as Character, Chave as Character ) as Logical Class TSolvs
+
+	Local Erros   as Array
+	Local Objeto  as Character
+	Local Retorno as Logical
+    Local oModel  as Object
+    Local oMaster as Object
+
+    Erros := {}
+    Retorno := .T.
+
+	dbSelectArea('AC9')
+    AC9->(dbSetOrder(1))
+
+    dbSelectArea('ACB')
+    ACB->(dbSetOrder(2))
+	if ACB->(dbSeek( fwXFilial('ACB') + (Nome + '.JPG') ))
+		if AC9->(dbSeek( fwXfilial('AC9') + ACB->ACB_CODOBJ ))
+			while !AC9->(EOF()) .and. (AC9->AC9_FILIAL == fwXFilial('AC9')) .and. ( AC9->AC9_CODOBJ == ACB->ACB_CODOBJ )
+				if RecLock('AC9', .f.)
+					AC9->( dbDelete() )
+					AC9->( msUnlock() )
+				endif
+
+				AC9->( dbSkip() )
+			enddo
+		endif
+
+		// chamada deve utilizar o processamento automático    
+		oModel := FWLoadModel("FATA340") 
+		oModel:SetOperation(5)
+		oModel:Activate()
+
+		If oModel:VldData()                
+			oModel:CommitData()
+		endif
+
+		oModel:DeActivate()
+		fwFreeVar( @oModel )
+	endif
+
+    // chamada deve utilizar o processamento automático    
+    oModel := FWLoadModel("FATA340") 
+    oModel:SetOperation(3)
+    oModel:Activate()
+
+    //Pegando o model dos campos da ACB
+    oMaster := oModel:getModel("ACBMASTER")
+    oMaster:setValue("ACB_OBJETO", Arquivo )
+    oMaster:setValue("ACB_DESCRI", subStr( Descricao, 1, TamSX3('ACB_DESCRI')[1] ) )
+        
+    //Se conseguir validar as informações
+    If !oModel:VldData()
+		Retorno := .f.
+	else
+        if oModel:CommitData()
+            Objeto := oMaster:GetValue('ACB_CODOBJ')
+        else
+			Retorno := .f.
+            //Busca o Erro do Modelo de Dados            
+        endif
+    EndIf   
+
+	if !Retorno
+		Erros := oModel:GetErrorMessage()
+	endif
+
+    //Desativa o modelo de dados
+    oModel:DeActivate()
+	fwFreeVar( @oMaster )
+	fwFreeVar( @oModel )
+
+	if len( Erros ) > 0
+		UserException( Erros[6] )
+	endif
+
+	RecLock('AC9', .T.)
+		AC9->AC9_FILIAL := xFilial('AC9')
+		AC9->AC9_FILENT := cfilAnt
+		AC9->AC9_ENTIDA := Tabela
+		AC9->AC9_CODENT := Chave
+		AC9->AC9_CODOBJ := Objeto
+	AC9->(msUnlock())
+
+Return REtorno
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::NovaColuna
+Cria nova coluna para FwBrowse
+
+@type method
+@version 1.0
+@author Lucas
+
+@since 02/09/2021
+
+@param Data, codeblock, Dados do campo
+@param Titulo, character, Título
+@param Tamanho, numeric, Tamanho
+@param Tipo, character, Tipo
+@param Picture, character, Picture
+
+@return Object, Objeto FwBrwColumn
+/*/
+//-------------------------------------------------
+Method NovaColuna( Data as codeBlock, Titulo as Character, Tamanho as Numeric, Tipo as Character, Picture as Character ) as Object class TSolvs
+    
+    Local Coluna as Object
+    Local NovoTamanho as Numeric
+	
+    NovoTamanho := Int( Tamanho / 2 )
+    if NovoTamanho <= 0
+        NovoTamanho := 5
+    endif
+
+	Coluna := FWBrwColumn():New()
+	Coluna:SetData( Data )
+	Coluna:SetTitle( alltrim(Titulo) )
+	Coluna:SetSize( NovoTamanho )
+	Coluna:SetType( Tipo )
+	Coluna:SetPicture( Picture )
+
+    do case
+        case Tipo == 'C'
+            Coluna:NALIGN := 1
+        case Tipo == 'N'
+            Coluna:NALIGN := 2
+        case Tipo == 'D'
+            Coluna:NALIGN := 0
+        otherwise
+            Coluna:NALIGN := 1
+    endcase
+
+Return Coluna
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::SafeRun( Bloco as CodeBlock ) as Logical
+Executa bloco de código com tratamento de erros.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 03/09/2021
+
+@param Bloco, CodeBlock, rotina para execução
+
+@return Logical, Verdadeiro ou Falso
+/*/
+//-------------------------------------------------
+Method SafeRun( Bloco as CodeBlock, TelaProc as Logical ) as Logical Class TSolvs
+
+	Local Erro as CodeBlock
+	Local Ret  as Logical
+	
+	default TelaProc := .f.
+
+	Ret := .f.
+
+	Erro := ErrorBlock( { |oError| Self:TrataErro( oError ) } )
+	Begin SEQUENCE
+
+		if !isBlind()
+			if TelaProc
+				FWMsgRun(, Bloco, cCadastro, "Processando, aguarde..." )
+			else
+				Eval( Bloco )
+			endif
+		else
+			Eval( Bloco )
+		endif
+		
+		Ret := .t.
+	End SEQUENCE
+	ErrorBlock( Erro )
+
+Return REt
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::IsRpc() as Logical
+Identifica se na classe foi defindido environment.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 03/09/2021
+
+@return Logical, Verdadeiro ou Falso
+/*/
+//-------------------------------------------------
+Method IsRpc() as Logical Class TSolvs
+Return Self:Rpc
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::Free
+Método destrutor da Classe.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 03/09/2021
+
+@param Instancia, object, Objeto Instanciado.
+/*/
+//-------------------------------------------------
+Method Free( Instancia as Object ) Class TSolvs
+
+	Local Metodos as Array
+	Local i       as Numeric
+
+    if (Instancia != Nil) 
+		Metodos := &(alltrim(Instancia:ClassName()) + '():TGetMethods()')
+
+		for i := 1 to len(Metodos)
+			do case
+				case ( Metodos[i] == 'CLEAR' )
+					Instancia:Clear()
+				// fim case
+
+				case ( Metodos[i] == 'LIMPA' )
+					Instancia:Limpa()
+				// fim case
+			endcase		
+		next		
+
+		Instancia:KillRpc()
+
+        FwFreeVar( @Instancia )
+    endif
+
+Return
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::GetSimpleError( asJson as Logical ) as Character
+Retorna somente o SimpleError da rotina.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 03/09/2021
+
+@param asJson, Logical, indica se o retorno deve ser em formato json ou não.
+
+@return Character, Informação de erro.
+/*/
+//-------------------------------------------------
+Method GetSimpleError( asJson as Logical ) as Character Class TSolvs
+	
+	Local REtorno as Character
+    Local oJson   as Object
+
+    default asJson := .F.
+
+    Retorno := fwNoAccent(alltrim(Self:simpleError))
+	Retorno := StrTran( Retorno , '"', "'" )
+
+    if asJson
+        oJson := JsonObject():New()
+        oJson['code'] := Self:GetWsStatus()
+        oJson['message'] := fwNoAccent(StrTran( Self:simpleError , '"', "'" ))
+        retorno := oJson:ToJson()
+        fwFreeVar(@oJson)
+    endif
+
+return Retorno
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::GetDetailError( asJson as Logical ) as Character
+Pega o detalhe do erro.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 03/09/2021
+
+@param asJson, Logical, indica se o retorno deve ser em formato json ou não.
+
+@return Character, Informação de erro.
+/*/
+//-------------------------------------------------
+Method GetDetailError( asJson as Logical ) as Character Class TSolvs
+	
+	Local REtorno as Character
+    Local oJson   as Object
+
+    default asJson := .F.
+
+    Retorno := fwNoAccent(alltrim(Self:detailError))
+	Retorno := StrTran( Retorno , '"', "'" )
+
+    if asJson
+        oJson := JsonObject():New()
+        oJson['code'] := Self:GetWsStatus()
+        oJson['message'] := fwNoAccent(StrTran( Self:detailError , '"', "'" ))
+        retorno := oJson:ToJson()
+        fwFreeVar(@oJson)
+    endif
+
+return Retorno
+
+//-------------------------------------------------
+/*/{Protheus.doc} TSolvs::AbreArea
+Abre área de dados.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 03/09/2021
+
+@param Tabela, character, Tabela
+@param Indice, numeric, Índice
+/*/
+//-------------------------------------------------
+Method AbreArea( Tabela as Character, Indice as Numeric ) Class TSolvs
+
+	Default Indice := 1
+
+	if FwSX2Util():SeekX2File( Tabela )
+		if ( aScan( Self:areas, { |x| AllTrim(x[1]) == Tabela } ) == 0 )
+			aAdd( Self:areas, (Tabela)->(GetArea()) )
+		endif
+
+		dbSelectArea(Tabela)
+		(Tabela)->(dbSetOrder(Indice))
+		(Tabela)->(dbGoTop())
+	endif
+
+Return

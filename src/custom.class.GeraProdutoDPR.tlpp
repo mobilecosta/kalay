@@ -1,0 +1,387 @@
+#Include "Totvs.ch"
+#Include "FWMVCDef.ch"
+
+/*/{Protheus.doc} GeraProdutoDPR
+CLasse de processamento Produto DPR
+@type class
+@author Mario L. B. Faria
+@since 2/17/2025
+/*/
+Class GeraProdutoDPR  
+
+    Data lErro    as Logical
+    Data cMsgErro as Character
+    Data cVerbo   as Character
+
+    Protected Data jCliente as Json
+    Protected Data jProduto as Json
+
+    Public Method New() constructor
+    Public Method TemErro() as Logical
+    Public Method GetErro() as Character
+    Public Method SetCliente()
+    Public Method SetProduto()
+
+    Protected Method ProcCliente()
+    Protected Method ProcProduto()
+    Protected Method GetCodMunicipio() as Character
+    
+Endclass
+
+
+/*/{Protheus.doc} GeraProdutoDPR::New
+Metodo inicializador da Classe
+@type method
+@author Mario L. B. Faria
+@since 2/17/2025
+@param cVerbo, character, POST, PUT ou GET
+@param jBody, json, Json recebido
+/*/
+Method New(cVerbo, jBody) Class GeraProdutoDPR
+
+    Self:cVerbo   := cVerbo
+    Self:jCliente := jBody["cliente"]
+    Self:jProduto := jBody["produto"]
+    Self:lErro    := .F.
+    Self:cMsgErro := ""
+
+    Self:jCliente["A1_CGC"]     := AllTrim(StrTran(StrTran(StrTran(Self:jCliente["A1_CGC"],".",""),"/",""),"-",""))
+    Self:jCliente["A1_INSCR"]   := AllTrim(StrTran(StrTran(StrTran(Self:jCliente["A1_INSCR"],".",""),"/",""),"-",""))
+    Self:jCliente["A1_CEP"]     := AllTrim(StrTran(StrTran(StrTran(Self:jCliente["A1_CEP"],".",""),"/",""),"-",""))
+    Self:jCliente["A1_COD_MUN"] := Self:GetCodMunicipio(Self:jCliente["A1_EST"], Self:jCliente["A1_MUN"])
+    
+    Self:jProduto["DG3_CDDPPA"] := SuperGetMv("MV_XCDDPPA",.F.,"01")
+
+    If Self:cVerbo  == "POST"
+        //Cometado pois Petterson não sabe se cliente vai usar
+        //Caso use, ele verifica o cadastro na CZ3, precisa definir o que faz nesta caso
+        //se inclui CZ3 na custom ou faz procedimento manual
+        // If !Empty(SuperGetMv("MV_XCDACPY"))
+        //     Self:jProduto["DG3_CDACPY"] := Soma1(SuperGetMv("MV_XCDACPY",.F.,TamSx3("DG3_CDACPY")[01]))
+        // Else
+        //     Self:jProduto["DG3_CDACPY"] := ""
+        // EndIf
+    EndIf
+
+Return 
+
+/*/{Protheus.doc} GeraProdutoDPR::TemErro
+Metodo que retnorna se tem erro ou não
+@type method
+@author Mario L. B. Faria
+@since 2/17/2025
+@return Logical, .T. ou .F.
+/*/
+Method TemErro() Class GeraProdutoDPR as Logical
+Return Self:lErro
+
+
+/*/{Protheus.doc} GeraProdutoDPR::GetErro
+Retorna o erro
+@type method
+@author Mario L. B. Faria
+@since 2/17/2025
+@return Character, Erro ocorrido
+/*/
+Method GetErro() Class GeraProdutoDPR as Character
+Return Self:cMsgErro
+
+
+/*/{Protheus.doc} GeraProdutoDPR::GetCodMunicipio
+Busca o codigo do municipio pelo nome da cidade
+@type method
+@author Mario L. B. Faria
+@since 2/17/2025
+@param cEstado, character, Estado
+@param cMunicipio, character, CIdade
+@return Character, Codigo do municipio
+/*/
+Method GetCodMunicipio(cEstado, cMunicipio) Class GeraProdutoDPR as Character
+
+    Local cRet := "" as Character
+
+    cEstado    := AllTrim(cEstado)
+    cMunicipio := AllTrim(cMunicipio)
+
+    DbSelectArea("CC2")
+    CC2->(DbSetOrder(4))
+    CC2->(DbGoTop())
+    If CC2->(DbSeek(FWxFilial('CC2') + cEstado + cMunicipio))
+        cRet := CC2->CC2_CODMUN
+    Else
+        Self:lErro     := .T.
+        Self:cMsgErro := "Municipio não localizado"       
+    EndIf
+
+Return cRet
+
+
+/*/{Protheus.doc} GeraProdutoDPR::SetCliente
+Valida o cliente
+@type method
+@author Mario L. B. Faria
+@since 2/17/2025
+/*/
+Method SetCliente() Class GeraProdutoDPR
+
+	Local cQuery 	:= ""  as Character
+	Local cAlQuery	:= ""  as Character
+    Local lNovo     := .T. as Logical
+
+    If !Self:TemErro()
+
+        cQuery := " SELECT " + CRLF
+        cQuery += "     SA1.R_E_C_N_O_ SA1_REC " + CRLF
+        cQuery += " FROM " + RetSqlName("SA1") + " SA1 " + CRLF
+        cQuery += " WHERE " + CRLF
+        cQuery += "         A1_FILIAL = '" + FwxFilial("SA1") + "' " + CRLF
+        cQuery += "     AND A1_CGC    = '" + Self:jCliente["A1_CGC"] + "' " + CRLF
+        cQuery += "     AND SA1.D_E_L_E_T_ = ' ' " + CRLF
+
+        cQuery := ChangeQuery(cQuery)
+        cAlQuery := MPSysOpenQuery(cQuery)
+
+        DbSelectArea("SA1")
+
+        If !(cAlQuery)->(Eof())
+            lNovo := .F.
+            SA1->(DbGoto((cAlQuery)->(SA1_REC)))
+            If SA1->A1_MSBLQL == "1"
+                Self:lErro     := .T.
+                Self:cMsgErro := "Cliente Bloqueado" 
+            Endif
+        EndIf
+
+        (cAlQuery)->(DbCloseArea())
+
+        If !Self:lErro 
+            Self:ProcCliente(lNovo)
+        EndIf
+
+    EndIf
+
+Return
+
+
+/*/{Protheus.doc} GeraProdutoDPR::ProcCliente
+Processa a inclusão ou alteração do cliente
+@type method
+@author Mario L. B. Faria
+@since 2/17/2025
+@param lNovo, logical, Indica se é cliente novo ou não
+/*/
+Method ProcCliente(lNovo) Class GeraProdutoDPR 
+
+    Local aSA1Auto   as Array
+    Local nY         as Numeric
+    Local cErro      as Character
+    Local nOpcao     as Numeric
+    Local lOk        as Logical
+
+    If lNovo
+        nOpcao := 3
+    Else
+        nOpcao := 4
+    EndIf
+
+    lOk := .T.
+    aSA1Auto := {}
+
+    Private lMsErroAuto     := .F.
+    Private lMsHelpAuto     := .T.
+    Private lAutoErrNoFile  := .T.
+
+    If nOpcao == 4
+        aAdd(aSA1Auto,{"A1_COD"     ,SA1->A1_COD    ,Nil})
+        aAdd(aSA1Auto,{"A1_LOJA"    ,SA1->A1_LOJA	,Nil})
+    EndIf
+
+    aAdd(aSA1Auto,{"A1_PESSOA"	,Self:jCliente["A1_PESSOA"]	,Nil})
+    aAdd(aSA1Auto,{"A1_CGC"		,Self:jCliente["A1_CGC"]	,Nil})
+    aAdd(aSA1Auto,{"A1_NOME"	,Self:jCliente["A1_NOME"]	,Nil})
+    aAdd(aSA1Auto,{"A1_NREDUZ"	,Self:jCliente["A1_NREDUZ"]	,Nil})
+    aAdd(aSA1Auto,{"A1_END"		,Self:jCliente["A1_END"]	,Nil})
+    aAdd(aSA1Auto,{"A1_BAIRRO"	,Self:jCliente["A1_BAIRRO"]	,Nil})
+    aAdd(aSA1Auto,{"A1_TIPO"	,Self:jCliente["A1_TIPO"]	,Nil})
+    aAdd(aSA1Auto,{"A1_CEP"		,Self:jCliente["A1_CEP"]	,Nil})
+    aAdd(aSA1Auto,{"A1_EST"		,Self:jCliente["A1_EST"]	,Nil})
+    aAdd(aSA1Auto,{"A1_COD_MUN"	,Self:jCliente["A1_COD_MUN"],Nil})
+    aAdd(aSA1Auto,{"A1_MUN"		,Self:jCliente["A1_MUN"]	,Nil})
+    aAdd(aSA1Auto,{"A1_DDD"		,Self:jCliente["A1_DDD"]	,Nil})
+    aAdd(aSA1Auto,{"A1_TEL"		,Self:jCliente["A1_TEL"]	,Nil})
+    aAdd(aSA1Auto,{"A1_CONTATO"	,Self:jCliente["A1_CONTATO"],Nil})
+    aAdd(aSA1Auto,{"A1_INSCR"	,Self:jCliente["A1_INSCR"]	,Nil})
+    aAdd(aSA1Auto,{"A1_EMAIL"	,Self:jCliente["A1_EMAIL"]	,Nil})
+    aAdd(aSA1Auto,{"A1_CONTRIB"	,Self:jCliente["A1_CONTRIB"],Nil})
+    
+    FwVetByDic(@aSA1Auto, "SA1", .F.)
+
+    Begin Transaction
+
+        MSExecAuto({|a,b,c| CRMA980(a,b,c)},aSA1Auto,nOpcao)        
+
+        If lMsErroAuto
+
+            DisarmTransaction()
+
+            aLogAuto    := {}
+            aLogAuto    := GetAutoGrLog()
+            For nY := 1 To Len(aLogAuto)
+                cErro += StrTran(StrTran(aLogAuto[nY], '<', ''), '-', '') + CRLF
+            Next nY
+            Self:lErro    := .T.
+            Self:cMsgErro := cErro
+
+        Else
+
+        EndIf
+
+    End Transaction 
+
+Return
+
+
+/*/{Protheus.doc} GeraProdutoDPR::SetProduto
+Valida o Produto
+@type method
+@author Mario L. B. Faria
+@since 2/17/2025
+@return variant, return_description
+/*/
+Method SetProduto() Class GeraProdutoDPR
+
+	Local cQuery 	:= ""  as Character
+	Local cAlQuery	:= ""  as Character
+
+    If !Self:TemErro()
+        If Self:cVerbo = "PUT"
+
+            cQuery += " SELECT " + CRLF
+            cQuery += "     DG3.R_E_C_N_O_ DG3_REC " + CRLF
+            cQuery += " FROM " + RetSqlName("DG3") + " DG3 " + CRLF
+            cQuery += " WHERE " + CRLF
+            cQuery += "         DG3_FILIAL = '" + FwxFilial("DG3") + "' " + CRLF
+            cQuery += "     AND DG3_CDACDV = '" + Self:jProduto["DG3_CDACDV"] + "' " + CRLF
+            cQuery += "     AND DG3.D_E_L_E_T_ = ' ' " + CRLF
+
+            cQuery := ChangeQuery(cQuery)
+            cAlQuery := MPSysOpenQuery(cQuery)
+
+            If !(cAlQuery)->(Eof())
+                DbSelectArea("DG3")
+                DG3->(DbGoto((cAlQuery)->(DG3_REC)))
+            Else
+                Self:lErro     := .T.
+                Self:cMsgErro := "Produto não localizado, utilize o metodo POST" 
+            EndIf
+
+            (cAlQuery)->(DbCloseArea())
+
+        EndIf
+    EndIf
+
+    If !Self:TemErro()
+        Self:ProcProduto()
+    EndIf
+
+Return
+
+
+/*/{Protheus.doc} GeraProdutoDPR::ProcProduto
+Processa a inclusão do Produto
+@type method
+@author Mario L. B. Faria
+@since 2/17/2025
+/*/
+Method ProcProduto() Class GeraProdutoDPR 
+
+    Local lOk        as Logical
+    // Local nY         as Numeric
+    Local nOpcao     as Numeric
+    // Local aCampos    as Array
+    Local oModel     as Object
+    Local oDG3Master as Object
+
+    Do Case
+	    Case Self:cVerbo = "POST"
+		    nOpcao := 3
+
+	    Case Self:cVerbo = "PUT"
+		    nOpcao := 4
+
+	    Case Self:cVerbo = "DELETE"
+		    nOpcao := 5
+
+	EndCase
+
+    lOk := .T.
+    // aCampos := Self:jProduto:GetNames()
+
+    Begin Transaction
+
+        oModel := FWLoadModel("DPRA100")
+        oModel:SetOperation(nOpcao)
+        oModel:Activate()
+
+        oDG3Master := oModel:GetModel("DG3MASTER")
+
+        If Self:cVerbo == "POST"
+            lOk := lOk .And. oDG3Master:SetValue("DG3_CDACDV", Self:jProduto["DG3_CDACDV"])
+        Endif
+        lOk := lOk .And. oDG3Master:SetValue("DG3_DSACDV", Self:jProduto["DG3_DSACDV"])  
+        lOk := lOk .And. oDG3Master:SetValue("DG3_CDUN"  , Self:jProduto["DG3_CDUN"])
+        lOk := lOk .And. oDG3Master:SetValue("DG3_CDACDE", Self:jProduto["DG3_CDACDV"])  
+        lOk := lOk .And. oDG3Master:SetValue("DG3_DSACDE", Self:jProduto["DG3_DSACDV"])
+        lOk := lOk .And. oDG3Master:SetValue("DG3_CDGE"  , Self:jProduto["DG3_CDGE"])  
+        lOk := lOk .And. oDG3Master:SetValue("DG3_CDFA"  , Self:jProduto["DG3_CDFA"])
+        lOk := lOk .And. oDG3Master:SetValue("DG3_CDUNDE", Self:jProduto["DG3_CDUN"])  
+        lOk := lOk .And. oDG3Master:SetValue("DG3_CDDPPA", Self:jProduto["DG3_CDDPPA"])
+
+        If Self:cVerbo == "POST"
+            // lOk := lOk .And. oDG3Master:SetValue("DG3_CDACPY", Self:jProduto["DG3_CDACPY"])
+            lOk := lOk .And. oDG3Master:SetValue("DG3_XFRMTE", Self:jProduto["DG3_XFRMTE"])
+            lOk := lOk .And. oDG3Master:SetValue("DG3_XIDFLG", Self:jProduto["DG3_XIDFLG"])
+            lOk := lOk .And. oDG3Master:SetValue("DG3_XEMBLG", Self:jProduto["DG3_XEMBLG"])
+            lOk := lOk .And. oDG3Master:SetValue("DG3_XSTATU", "01")
+        EndIf
+
+        If lOk
+            If oModel:VldData() .And. oModel:CommitData()
+                //Cometado pois Petterson não sae se cliente vai usar
+                //Caso use, ele verifica o cadastro na CZ3, precisa definir o que faz nesta caso
+                //se inclui CZ3 na custom ou faz procedimento manual
+                // If Self:cVerbo == "POST" .And. !Empty(Self:jProduto["DG3_CDACPY"])
+                //     PutMv("MV_XCDACPY", Self:jProduto["DG3_CDACPY"])
+                // EndIf
+                lOk := .T.
+            Else
+                lOk := .F.
+            EndIf
+        EndIf
+
+        If !lOk
+
+            DisarmTransaction()
+
+            aErro := oModel:GetErrorMessage()
+            
+            cErro := "Id do formulário de origem:"  + " [" + cValToChar(aErro[01]) + "], "
+            cErro += "Id do campo de origem: "      + " [" + cValToChar(aErro[02]) + "], "
+            cErro += "Id do formulário de erro: "   + " [" + cValToChar(aErro[03]) + "], "
+            cErro += "Id do campo de erro: "        + " [" + cValToChar(aErro[04]) + "], "
+            cErro += "Id do erro: "                 + " [" + cValToChar(aErro[05]) + "], "
+            cErro += "Mensagem do erro: "           + " [" + cValToChar(aErro[06]) + "], "
+            cErro += "Mensagem da solução: "        + " [" + cValToChar(aErro[07]) + "], "
+            cErro += "Valor atribuído: "            + " [" + cValToChar(aErro[08]) + "], "
+            cErro += "Valor anterior: "             + " [" + cValToChar(aErro[09]) + "]"
+            
+            Self:lErro    := .T.
+            Self:cMsgErro := cErro
+
+        EndIf
+
+        oModel:DeActivate()
+
+    End Transaction
+
+Return

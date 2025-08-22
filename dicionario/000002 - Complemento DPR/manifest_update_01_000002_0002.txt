@@ -1,0 +1,33 @@
+MANIFESTO DE ATUALIZAÇÃO
+
+Data : 07/05/2025
+Hora : 10:45:28
+Arquivo de atualização diferencial baseado em projeto gerado pelo Configurador
+Projeto : 000002
+Descrição : COMPLEMENTO DPR                                   
+Versão : 0002
+Release de referência : 12.1.2310 
+Responsável pelo Projeto: 000000 - Administrador
+Geração do Pacote: 000000 - Administrador
+-----------------------------
+Componentes do arquivo de atualização :
+
+------------
+SX3
+
+Operação:Inclusão ou Alteração
+Campo : DG0_XDOSGM
+
+Operação:Inclusão ou Alteração
+Campo : DG0_XCUSTO
+
+Operação:Inclusão ou Alteração
+Campo : DG3_XPRIOR
+
+
+------------
+Helps (hlppack*.txt)
+
+Chave : DG0_XDOSGM
+Chave : DG0_XCUSTO
+Chave : DG3_XPRIOR

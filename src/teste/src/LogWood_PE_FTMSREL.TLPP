@@ -1,0 +1,32 @@
+#include 'Totvs.ch'
+
+//-------------------------------------------------
+/*/{Protheus.doc} FTMSREL
+Definição de Chave Primaria de usuário. Este ponto de entrada é utilizado para incluir tabelas de usuário, 
+quando se utiliza o conceito de contato único do Administrador de Vendas / Call Center ou o Banco de Conhecimento. 
+Para que se possa utilizar o Banco de Conhecimento utilizando uma tabela de usuário (Ex. SZ1), 
+torna-se necessário informar ao sistema qual a chave primária de relacionamento. Por exemplo, 
+a chave primária de relacionamento do cadastro de clientes é: FILIAL + CODIGO + LOJA. 
+
+@type function
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 02/09/2021
+
+@see https://tdn.totvs.com/display/public/PROT/FTMSREL
+
+@return Array, Array com as Entidades customizadas.
+/*/
+//-------------------------------------------------
+USER FUNCTION FTMSREL()
+    
+	Local aRet As Array
+
+    aRet := {}
+    
+    if FwSX2Util():SeekX2File( 'Z00' )
+        AAdd( aRet, { 'Z00', { 'Z00_FILIAL', 'Z00_NUM' }, { || Z00->Z00_FILIAL + Z00->Z00_NUM }, { 'Z00_FILIAL', 'Z00_NUM' } } )
+    endif
+
+Return( aRet )

@@ -1,0 +1,531 @@
+#INCLUDE "MATR540.CH"
+#INCLUDE "PROTHEUS.CH"
+
+/*/{Protheus.doc} xMatr540
+	Relatorio de Comissoes de Motoristas (OMS)
+	@type function
+	@author Ademar Fernandes Jr.
+	@since 16/10/2021
+/*/
+User Function xMatr540()
+
+Local oReport	 := Nil
+Local aPDFields	 := {"A4_NOME","A1_NOME"}
+
+//-- Interface de impressao
+//Inicializa variaveis com lista de campos que devem ser ofuscados de acordo com usuario.
+FATPDLoad(Nil,Nil,aPDFields)     
+
+oReport := ReportDef()
+oReport:PrintDialog()
+
+//Finaliza o gerenciamento dos campos com proteção de dados.
+FATPDUnLoad()
+Return Nil
+
+
+/*/{Protheus.doc} ReportDef
+	A funcao estatica ReportDef devera ser criada para todos os relatorios que poderao ser agendados pelo usuario. 
+	@type function
+	@author Ademar Fernandes Jr.
+	@since 16/10/2021
+/*/
+Static Function ReportDef()
+
+Local oReport
+Local oComissaoA
+Local oDetalhe
+Local oTotal,oGeral
+Local cVend  		:= ""
+Local cMotor  		:= ""
+Local dVencto   	:= CTOD( "" ) 
+Local dBaixa    	:= CTOD( "" ) 
+Local nVlrTitulo	:= 0
+Local nBasePrt  	:= 0
+Local nComPrt   	:= 0
+Local cTipo     	:= ""
+Local nAc1			:= 0
+Local nAc2			:= 0
+Local nAc3      	:= 0
+Local nTamData  	:= Len(DTOC(MsDate()))
+Local cAlias		:= GetNextAlias()
+Local cPerg			:= "XMTR540"
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³Criacao do componente de impressao                                      ³
+//³TReport():New                                                           ³
+//³ExpC1 : Nome do relatorio                                               ³
+//³ExpC2 : Titulo                                                          ³
+//³ExpC3 : Pergunte                                                        ³
+//³ExpB4 : Bloco de codigo que sera executado na confirmacao da impressao  ³
+//³ExpC5 : Descricao                                                       ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+oReport := TReport():New("xMATR540",STR0025,cPerg,{|oReport| ReportPrint(oReport,cAlias,oComissaoA,oDetalhe,oTotal,oGeral)},STR0026)
+oReport:SetLandscape()
+oReport:SetTotalInLine(.F.)
+
+//--Pergunte("MTR540",.F.)
+Pergunte(cPerg,.F.)
+
+oComissaoA := TRSection():New(oReport,STR0050,{"SE3","SA3"},{STR0046,STR0047},/*Campos do SX3*/,/*Campos do SIX*/)
+oComissaoA:SetTotalInLine(.F.)
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Analitico                                                              ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+TRCell():New(oComissaoA,"E3_XMOTOR","SE3","Motorista",/*Picture*/           ,/*Tamanho*/         ,/*lPixel*/  ,{|| cMotor })
+TRCell():New(oComissaoA,"DA4_NOME" ,"DA4","Nome",/*Picture*/                ,/*Tamanho*/         ,/*lPixel*/  ,{|| FATPDObfuscate(DA4->DA4_NOME,"DA4_NOME") })  
+
+// Titulos da Comissao
+oDetalhe := TRSection():New(oComissaoA,STR0048,{"SE3","SA1","DA4"},/*{Array com as ordens do relatório}*/,/*Campos do SX3*/,/*Campos do SIX*/)
+oDetalhe:SetTotalInLine(.F.)
+oDetalhe:SetHeaderBreak(.T.)
+TRCell():New(oDetalhe,"E3_PREFIXO" 	,cAlias, /*Titulo*/	, /*Picture*/               ,/*Tamanho*/		,/*lPixel*/,/*{|| code-block de impressao }*/)
+TRCell():New(oDetalhe,"E3_NUM"		,cAlias, /*Titulo*/	, /*Picture*/               ,/*Tamanho*/		,/*lPixel*/,{|| E3_NUM })
+TRCell():New(oDetalhe,"E3_PARCELA" 	,cAlias, /*Titulo*/	, /*Picture*/               ,/*Tamanho*/		,/*lPixel*/,/*{|| code-block de impressao }*/)
+TRCell():New(oDetalhe,"E3_SEQ" 		,cAlias, "Armazem"	, /*Picture*/               ,/*Tamanho*/		,/*lPixel*/,/*{|| code-block de impressao }*/)
+TRCell():New(oDetalhe,"E3_CODCLI"	,cAlias, /*Titulo*/	, /*Picture*/               ,/*Tamanho*/		,/*lPixel*/,/*{|| code-block de impressao }*/)
+TRCell():New(oDetalhe,"NOMCLI"      ,"   " , RetTitle("A1_NREDUZ"),/*Picture*/		,30					,/*lPixel*/,{|| cNomCli:=SA1->A1_NREDUZ,Substr(FATPDObfuscate(cNomCli,"A1_NOME"),1,30) })
+TRCell():New(oDetalhe,"E3_EMISSAO"	,cAlias, /*Titulo*/	, /*Picture*/               ,/*Tamanho*/		,/*lPixel*/,/*{|| code-block de impressao }*/)
+TRCell():New(oDetalhe,"DVENCTO"		,"    ", STR0033	, /*Picture*/               ,nTamData			,/*lPixel*/,{|| dVencto })
+TRCell():New(oDetalhe,"DBAIXA"		,"    ", STR0034	, /*Picture*/               ,nTamData			,/*lPixel*/,{|| dBaixa })
+TRCell():New(oDetalhe,"E3_DATA"		,cAlias, /*Titulo*/	, /*Picture*/               ,nTamData			,/*lPixel*/,/*{|| code-block de impressao }*/)
+TRCell():New(oDetalhe,"E3_PEDIDO"	,cAlias, STR0039	, /*Picture*/               ,/*Tamanho*/		,/*lPixel*/,/*{|| code-block de impressao }*/)
+TRCell():New(oDetalhe,"NVLRTITULO"	,"    ", STR0035	,PesqPict('SE3','E3_BASE')	,TamSx3("E3_BASE")[1],/*lPixel*/,{|| 5,5 }) //nVlrTitulo })
+TRCell():New(oDetalhe,"NBASEPRT"	,"    ", STR0036	,PesqPict('SE3','E3_BASE')	,TamSx3("E3_BASE")[1],/*lPixel*/,{|| nBasePrt })
+TRCell():New(oDetalhe,"E3_PORC"		,cAlias, STR0032	,PesqPict('SE3','E3_PORC')	,TamSx3("E3_PORC")[1],/*lPixel*/,/*{|| code-block de impressao }*/)
+TRCell():New(oDetalhe,"NCOMPRT"		,"    ", STR0038	,PesqPict('SE3','E3_COMIS')	,TamSx3("E3_COMIS")[1],/*lPixel*/,{|| nComPrt })
+TRCell():New(oDetalhe,"E3_BAIEMI"	,cAlias, STR0040	,/*Picture*/                ,/*Tamanho*/		,/*lPixel*/,{|| Substr(cTipo,1,1) })
+TRCell():New(oDetalhe,"E3_XPESO"	,cAlias, RetTitle("E3_XPESO"),PesqPict('SE3','E3_XPESO'),TamSx3("E3_XPESO")[1],/*lPixel*/,/*{|| code-block de impressao }*/)
+TRCell():New(oDetalhe,"E3_XVLFRET"	,cAlias, RetTitle("E3_XVLFRET"),PesqPict('SE3','E3_XVLFRET'),TamSx3("E3_XVLFRET")[1],/*lPixel*/,/*{|| code-block de impressao }*/)
+
+//-- Secao Totalizadora do Valor do IR e Total (-) IR
+oTotal := TRSection():New(oReport,"",{},/*{Array com as ordens do relatório}*/,/*Campos do SX3*/,/*Campos do SIX*/)
+
+//-- TOTAL GERAL
+oGeral := TRSection():New(oTotal,"",{},/*{Array com as ordens do relatório}*/,/*Campos do SX3*/,/*Campos do SIX*/)
+TRCell():New(oGeral, "TXTTOTAL"          , "" , STR0052  , , 08 ,/*lPixel*/,{ || "" } )    
+TRCell():New(oGeral, "GERAL"	         , "" , STR0053  , PesqPict('SE3','E3_COMIS')    	, TamSX3("E3_COMIS")[1]   ,/*lPixel*/,/*CodeBlock*/)
+TRCell():New(oGeral, "PERCENT"	         , "" , STR0054  , PesqPict("SE3","E3_PORC" )   	, TamSX3("E3_PORC" )[1]   ,/*lPixel*/,/*CodeBlock*/)
+TRCell():New(oGeral, "COMIS"		     , "" , STR0055  , PesqPict('SE3','E3_COMIS')    	, TamSX3("E3_COMIS")[1]   ,/*lPixel*/,/*CodeBlock*/)
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Impressao do Cabecalho no topo da pagina                               ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+oReport:Section(1):SetHeaderPage()
+oReport:Section(1):Setedit(.T.)
+oReport:Section(1):Section(1):Setedit(.T.)
+oReport:Section(2):Setedit(.F.)
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Alinhamento a direita dos campos de valores                            ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+//Analitico
+oDetalhe:Cell("NVLRTITULO"):SetHeaderAlign("RIGHT")
+oDetalhe:Cell("NBASEPRT"):SetHeaderAlign("RIGHT")
+oDetalhe:Cell("NCOMPRT"):SetHeaderAlign("RIGHT")
+
+//TOTAL GERAL
+oGeral:Cell("TXTTOTAL"):SetHeaderAlign("RIGHT")
+oGeral:Cell("GERAL"   ):SetHeaderAlign("RIGHT") 
+oGeral:Cell("PERCENT" ):SetHeaderAlign("RIGHT")
+oGeral:Cell("COMIS"   ):SetHeaderAlign("RIGHT")
+
+Return(oReport)
+
+
+/*/{Protheus.doc} ReportPrint
+	A funcao estatica ReportDef devera ser criada para todos os relatorios que poderao ser agendados pelo usuario.
+	@type function
+	@author Ademar Fernandes Jr.
+	@since 16/10/2021
+	@param oReport, object, param_description
+	@param cAlias, character, param_description
+	@param oComissaoA, object, param_description
+	@param oDetalhe, object, param_description
+	@param oTotal, object, param_description
+	@param oGeral, object, param_description
+	@return variant, return_description
+/*/
+Static Function ReportPrint(oReport,cAlias,oComissaoA,oDetalhe,oTotal,oGeral)
+
+Local dEmissao := CTOD( "" ) 
+Local nTotLiq  := 0
+Local aLiquid  := {}
+Local cWhere   := ""
+Local cFilSE3de, cFilSE3ate
+Local nI       := 0
+Local cOrder   := ""
+Local nDecs
+Local nTotPorc	:= 0
+Local nTotPerVen	:= 0
+Local nTotPerGer	:= 0
+Local cTitulo   := ""                                     
+Local cAjuste   := ""
+Local nXPeso	:= 0
+Local nXFret	:= 0
+
+Local nTotBase	:= 0
+Local nTotComis	:= 0
+Local nSection	:= 0
+Local nOrdem	:= 0
+Local nTGerBas  := 0
+Local nTGerCom  := 0
+Local cFilSE3   := "" 
+Local cFilSA1   := "" 
+Local lVend	    := .F.
+Local lFirst    := .F.
+Local lSaltaPag := .F.
+Local nMoeda	:= 1
+Local aNF		:= {}
+
+If oReport:Section(1):GetOrder() == 1		// Ordem: por Titulo
+	nOrdem := 1
+Else										// Ordem: por Cliente
+	nOrdem := 2
+EndIf	
+
+nSection := 1   
+
+oReport:Section(1):section(1):Cell(("A1_NREDUZ") )
+oReport:Section(1):Cell("E3_XMOTOR"):SetBlock({|| cMotor })
+oReport:Section(1):Section(1):Cell("DVENCTO" ):SetBlock({|| dVencto })	
+oReport:Section(1):Section(1):Cell("DBAIXA" ):SetBlock({|| dBaixa })	
+oReport:Section(1):Section(1):Cell("NVLRTITULO" ):SetBlock({|| nVlrTitulo })	
+oReport:Section(1):Section(1):Cell("NBASEPRT" ):SetBlock({|| nBasePrt })	
+oReport:Section(1):Section(1):Cell("NCOMPRT" ):SetBlock({|| nComPrt })	
+oReport:Section(1):Section(1):Cell("E3_BAIEMI" ):SetBlock({|| Substr(cTipo,1,1) })	
+oReport:Section(1):Section(1):Cell("E3_XPESO" ):SetBlock({|| nXPeso })	
+oReport:Section(1):Section(1):Cell("E3_XVLFRET" ):SetBlock({|| nXFret })	
+
+bVOrig := { || nVlrTitulo := Iif(cTitulo <> (cAlias)->E3_PREFIXO+(cAlias)->E3_NUM+(cAlias)->E3_PARCELA+(cAlias)->E3_TIPO+(cAlias)->E3_VEND+(cAlias)->E3_CODCLI+(cAlias)->E3_LOJA, nVlrTitulo, 0 ) }
+
+TRFunction():New(oDetalhe:Cell("NVLRTITULO"),/* cID */,"SUM",/*oBreak*/,/*cTitle*/,/*cPicture*/,bVOrig,.T./*lEndSection*/,lSaltaPag/*lEndReport*/,/*lEndPage*/)
+TRFunction():New(oDetalhe:Cell("NBASEPRT")  ,/* cID */,"SUM",/*oBreak*/,/*cTitle*/,/*cPicture*/,/*uFormula*/,.T./*lEndSection*/,lSaltaPag/*lEndReport*/,/*lEndPage*/)
+TRFunction():New(oDetalhe:Cell("NCOMPRT")   ,/* cID */,"SUM",/*oBreak*/,/*cTitle*/,PesqPict('SE3','E3_COMIS'),/*uFormula*/,.T./*lEndSection*/,lSaltaPag/*lEndReport*/,/*lEndPage*/)	
+TRFunction():New(oDetalhe:Cell("E3_PORC")   ,/* cID */,"ONPRINT",/*oBreak*/,/*cTitle*/,PesqPict('SE3','E3_PORC'),{|| nTotPorc },.T./*lEndSection*/,lSaltaPag/*lEndReport*/,/*lEndPage*/)
+
+cVend		:= ""
+cMotor		:= ""
+dVencto 	:= ctod("  /  /  ")
+dBaixa 		:= ctod("  /  /  ") 
+nVlrTitulo 	:= 0
+nBasePrt 	:= 0
+nComPrt 	:= 0
+cTipo 		:= ""
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³Filtragem do relatório                                                  ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+// Indexa de acordo com ordem escolhida oelo cliente
+dbSelectArea("SE3")
+If nOrdem == 1		// Ordem: por Titulo
+	dbSetOrder(2)   
+	cOrder := "E3_FILIAL,E3_VEND,E3_PREFIXO,E3_NUM,E3_PARCELA"
+Else										// Ordem: por Cliente
+	dbSetOrder(3)
+	cOrder := "E3_FILIAL,E3_VEND,E3_CODCLI,E3_LOJA,E3_PREFIXO,E3_NUM,E3_PARCELA"
+EndIf	
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³Query do relatório da secao 1                                           ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³Transforma parametros Range em expressao SQL                            ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+MakeSqlExpr(oReport:uParam)	
+
+oReport:Section(nSection):BeginQuery()
+
+// Considera as filiais abaixo?
+if MV_PAR03 == 1
+	cFilSE3de  := MV_PAR04
+	cFilSE3ate := MV_PAR05
+else
+	cFilSE3de  := Space(Len(SE3->E3_FILIAL))
+	cFilSE3ate := Replicate("Z", Len(SE3->E3_FILIAL))
+endif
+
+cWhere += " AND E3_FILIAL BETWEEN '" + cFilSE3de + "' AND '" + cFilSE3ate + "' "
+if mv_par14 = 1
+	cWhere += " AND E3_DATA = ' ' "
+ElseIf mv_par14 = 2
+	cWhere += " AND E3_DATA <> ' ' "
+EndIF
+cWhere += " ORDER BY " + cOrder
+cWhere := "%" + cWhere + "%"
+
+BEGIN REPORT QUERY oDetalhe
+	BeginSql Alias cAlias
+	SELECT E3_FILIAL,E3_BASE,E3_COMIS,E3_VEND,E3_PORC,E3_PREFIXO,E3_NUM,E3_PARCELA,E3_TIPO,E3_CODCLI,E3_LOJA,E3_AJUSTE,E3_BAIEMI,
+		   E3_EMISSAO,E3_VENCTO,E3_DATA,E3_PEDIDO,E3_SEQ,DA4_NOME,E3_XMOTOR, E3_XPESO, E3_XVLFRET
+	  FROM %table:SE3% SE3
+	  JOIN %table:DA4% DA4 ON DA4_FILIAL = %xfilial:DA4% AND DA4_COD = E3_XMOTOR AND DA4.D_E_L_E_T_ = ' '
+	 WHERE E3_XMOTOR	BETWEEN %Exp:MV_PAR01% AND %Exp:MV_PAR02%
+	   AND E3_CODCLI	BETWEEN %Exp:MV_PAR06% AND %Exp:MV_PAR07%
+	   AND E3_LOJA		BETWEEN %Exp:MV_PAR08% AND %Exp:MV_PAR09%
+	   AND E3_NUM		BETWEEN %Exp:MV_PAR10% AND %Exp:MV_PAR11%
+	   AND E3_EMISSAO	BETWEEN %Exp:Dtos(MV_PAR12)% AND %Exp:Dtos(MV_PAR13)%
+	   AND E3_SEQ		BETWEEN %Exp:MV_PAR15% AND %Exp:MV_PAR16%
+	   AND SE3.%NotDel%
+			%Exp:cWhere%
+	EndSql
+END REPORT QUERY oDetalhe
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³Metodo EndQuery ( Classe TRSection )                                    ³
+//³Prepara o relatório para executar o Embedded SQL.                       ³
+//³ExpA1 : Array com os parametros do tipo Range                           ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+oReport:Section(nSection):EndQuery()
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³Metodo TrPosition()                                                     ³
+//³Posiciona em um registro de uma outra tabela. O posicionamento será     ³
+//³realizado antes da impressao de cada linha do relatório.                ³
+//³ExpO1 : Objeto Report da Secao                                          ³
+//³ExpC2 : Alias da Tabela                                                 ³
+//³ExpX3 : Ordem ou NickName de pesquisa                                   ³
+//³ExpX4 : String ou Bloco de código para pesquisa. A string será macroexe-³
+//³        cutada.                                                         ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+TRPosition():New(oReport:Section(nSection),"DA4",1,{|| xFilial("DA4")+cMotor })
+TRPosition():New(oReport:Section(1):Section(1),"SA1",1,{|| xFilial("SA1")+(cAlias)->E3_CODCLI+(cAlias)->E3_LOJA })
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³Inicio da impressao do fluxo do relatório                               ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+nTotBase	:= 0
+nTotComis	:= 0
+
+dbSelectArea(cAlias)
+dbGoTop()
+nDecs     := GetMv("MV_CENT"+STR(nMoeda))
+
+oReport:SetMeter(SE3->(LastRec()))
+dbSelectArea(cAlias)
+While !oReport:Cancel() .And. !&(cAlias)->(Eof())
+	
+	cVend := &(cAlias)->(E3_VEND)
+	cMotor := &(cAlias)->(E3_XMOTOR)
+	nAc1 := 0
+	nAc2 := 0
+	nAc3 := 0
+	nTotPerVen := 0
+	
+	oReport:Section(nSection):Init()
+	If Empty(cFilSE3) .And. Empty(cFilSA1)
+		oReport:Section(nSection):PrintLine()
+	EndIf	
+
+	lVend:= .T. 
+	lFirst := .T. 
+	aNF := {}
+	While !Eof() .And. xFilial("SE3") == (cAlias)->E3_FILIAL .And. (cAlias)->E3_VEND == cVend
+		nBasePrt   := 0
+		nComPrt    := 0
+		nVlrTitulo := 0
+		nTotBase	:= 0
+		nTotComis	:= 0
+
+		dbSelectArea("SE3")
+		dbSetOrder(2)
+		dbSeek(xFilial("SE3")+cVend+&(cAlias)->(E3_PREFIXO)+&(cAlias)->(E3_NUM)+&(cAlias)->(E3_PARCELA)+&(cAlias)->(E3_SEQ))
+						
+		If!Empty(cFilSE3) .And. !SE3->(&cFilSE3)
+		   dbSelectArea(cAlias)	
+	       dbSkip()
+		   Loop
+		ElseIf !Empty(cFilSE3) .And. SE3->(&cFilSE3) .And. lVend 
+			oReport:Section(nSection):PrintLine()       
+			lVend:= .F.
+		EndIf
+		If!Empty(cFilSA1) 
+		   	SA1->(dbSetOrder(1))               
+			If SA1->(dbSeek(xFilial()+&(cAlias)->(E3_CODCLI)+&(cAlias)->(E3_LOJA)))
+				If !( SA1->&cFilSa1)	
+		  			dbSelectArea(cAlias)	 
+				   	dbSkip()  
+					Loop
+				ElseIf (SA1->&cFilSA1) .And. lVend
+					oReport:Section(nSection):PrintLine()
+					lVend := .F.	
+				EndIf	
+		   	EndIf 
+		EndIf 		   	
+		nVlrTitulo:= Round(xMoeda((cAlias)->E3_BASE,nMoeda,nMoeda,(cAlias)->E3_EMISSAO,nDecs+1),nDecs)
+
+		dEmissao  := (cAlias)->E3_EMISSAO
+		dBaixa    := (cAlias)->E3_EMISSAO
+		dVencto   := (cAlias)->E3_VENCTO
+		aLiquid	  := {}
+		aValLiq	  := {}
+		nTotLiq	  := 0
+		
+		If Eof()
+			dbSelectArea("SF1")
+			dbSetOrder(1)
+
+			dbSelectArea("SF2")
+			dbSetorder(1)
+			
+			If AllTrim((cAlias)->E3_TIPO) == "NCC"
+				SF1->(dbSeek(xFilial("SF1")+(cAlias)->E3_NUM+(cAlias)->E3_PREFIXO+(cAlias)->E3_CODCLI+(cAlias)->E3_LOJA,.t.))
+			    nVlrTitulo := Round(xMoeda(SF1->F1_VALBRUT,SF1->F1_MOEDA,nMoeda,SF1->F1_DTDIGIT,nDecs+1,SF1->F1_TXMOEDA),nDecs)
+			    dEmissao   := SF1->F1_DTDIGIT
+			Else
+		   		dbSeek(xFilial()+(cAlias)->E3_NUM+(cAlias)->E3_PREFIXO)
+				nVlrTitulo := Round(xMoeda(F2_VALFAT,SF2->F2_MOEDA,nMoeda,SF2->F2_EMISSAO,nDecs+1,SF2->F2_TXMOEDA),nDecs)
+		 		dEmissao   := SF2->F2_EMISSAO
+			EndIf
+			
+			dVencto    := CTOD( "" )
+			dBaixa     := CTOD( "" )  	
+		Endif
+		
+		If Empty(dEmissao)
+			dEmissao := NIL
+		EndIf
+
+		nBasePrt:=	Round(xMoeda((cAlias)->E3_BASE ,1,nMoeda,dEmissao,nDecs+1),nDecs)
+		nComPrt :=	Round(xMoeda((cAlias)->E3_COMIS,1,nMoeda,dEmissao,TamSx3("E3_COMIS")[2]+1),TamSx3("E3_COMIS")[2])
+		
+		If nBasePrt < 0 .And. nComPrt < 0
+			nVlrTitulo := nVlrTitulo * -1
+		Endif
+		
+		nXPeso := (cAlias)->E3_XPESO
+		nXFret := (cAlias)->E3_XVLFRET
+		cTipo  := (cAlias)->E3_BAIEMI
+		If Ascan(aNF, (cAlias)->E3_NUM) == 0
+			Aadd(aNF, (cAlias)->E3_NUM)
+		EndIF
+
+		dbSelectArea(cAlias)
+		oReport:Section(1):Section(1):Init()
+		oReport:Section(1):Section(1):PrintLine()
+		oReport:IncMeter()
+			
+		nAc1 += nBasePrt
+		nAc2 += nComPrt
+		nTotPerVen += (nBasePrt*(cAlias)->E3_PORC)/100
+		nTotPerGer += nTotPerVen
+		If cTitulo <> (cAlias)->E3_PREFIXO+(cAlias)->E3_NUM+(cAlias)->E3_PARCELA+(cAlias)->E3_TIPO+(cAlias)->E3_VEND+(cAlias)->E3_CODCLI+(cAlias)->E3_LOJA 
+			nAc3   += nVlrTitulo
+			cTitulo:= (cAlias)->E3_PREFIXO+(cAlias)->E3_NUM+(cAlias)->E3_PARCELA+(cAlias)->E3_TIPO+(cAlias)->E3_VEND+(cAlias)->E3_CODCLI+(cAlias)->E3_LOJA
+		EndIf
+		
+		dbSelectArea(cAlias)
+		dbSkip()
+	EndDo
+	
+	nTotBase 	+= nAc1
+	nTotComis 	+= nAc2
+	nTotPorc	:= Round((nTotComis / nTotBase)*100,TamSx3("E3_COMIS")[2])
+	nTotPerVen  := Round((nTotPerVen/nAc1)*100,TamSx3("E3_PORC")[2])
+	oReport:Section(1):Section(1):SetTotalText("Total do Motorista " + cMotor + " - " + AllTrim(Str(Len(aNF))) + " Carga(s)" )
+	oReport:Section(1):Section(1):Finish()
+	oReport:Section(nSection):Finish()
+	oReport:Section(2):Init()
+	oReport:Section(2):PrintLine()
+	oReport:Section(2):Finish()
+	
+	If lSaltaPag
+	   oReport:Section(nSection):SetPageBreak(.T.)
+	EndIf
+	
+	nTGerBas    += nAc1
+    nTGerCom    += nAc2
+EndDo
+
+nTotPorc := ((nTGerCom*100)/nTGerBas) 
+ 
+If lSaltaPag
+	oGeral:SetPageBreak(.T.)
+	oGeral:Cell("TXTTOTAL"):SetSize(21)
+	oGeral:Cell("GERAL"   ):SetBlock  ( { || nTGerBas } ) 
+	oGeral:Cell("PERCENT" ):SetBlock  ( { || nTotPorc } )
+	oGeral:Cell("COMIS"   ):SetBlock  ( { || nTGerCom } ) 
+	oGeral:Init()
+	oGeral:PrintLine()
+	oGeral:Finish()
+	oGeral:SetPageBreak(.T.)
+EndIf 
+Return
+
+/*/{Protheus.doc} FATPDLoad
+    Inicializa variaveis com lista de campos que devem ser ofuscados de acordo com usuario.
+	Remover essa função quando não houver releases menor que 12.1.27
+    @type  function
+    @author Squad CRM & Faturamento
+    @since  05/12/2019
+    @version P12.1.27
+    @param cUser, Caractere, Nome do usuário utilizado para validar se possui acesso ao 
+        dados protegido.
+    @param aAlias, Array, Array com todos os Alias que serão verificados.
+    @param aFields, Array, Array com todos os Campos que serão verificados, utilizado 
+        apenas se parametro aAlias estiver vazio.
+    @param cSource, Caractere, Nome do recurso para gerenciar os dados protegidos.
+    @return cSource, Caractere, Retorna nome do recurso que foi adicionado na pilha.
+    @example FATPDLoad("ADMIN", {"SA1","SU5"}, {"A1_CGC"})
+/*/
+Static Function FATPDLoad(cUser, aAlias, aFields, cSource)
+	Local cPDSource := ""
+
+	If FATPDActive()
+		cPDSource := FTPDLoad(cUser, aAlias, aFields, cSource)
+	EndIf
+Return cPDSource
+
+/*/{Protheus.doc} FATPDUnload
+    Finaliza o gerenciamento dos campos com proteção de dados.
+	Remover essa função quando não houver releases menor que 12.1.27
+    @type  function
+    @author Squad CRM & Faturamento
+    @since  05/12/2019
+    @version P12.1.27
+    @param cSource, Caractere, Remove da pilha apenas o recurso que foi carregado.
+    @return return, Nulo
+    @example FATPDUnload("XXXA010") 
+/*/
+Static Function FATPDUnload(cSource)    
+    If FATPDActive()
+		FTPDUnload(cSource)    
+    EndIf
+Return Nil
+
+/*/{Protheus.doc} FATPDObfuscate
+    Realiza ofuscamento de uma variavel ou de um campo protegido.
+	Remover essa função quando não houver releases menor que 12.1.27
+    @type  function
+    @sample FATPDObfuscate("999999999","U5_CEL")
+    @author Squad CRM & Faturamento
+    @since 04/12/2019
+    @version P12.1.27
+    @param xValue, (caracter,numerico,data), Valor que sera ofuscado.
+    @param cField, caracter , Campo que sera verificado.
+    @param cSource, Caractere, Nome do recurso que buscar dados protegidos.
+    @param lLoad, Logico, Efetua a carga automatica do campo informado
+    @return xValue, retorna o valor ofuscado.
+/*/
+Static Function FATPDObfuscate(xValue, cField, cSource, lLoad)
+    If FATPDActive()
+		xValue := FTPDObfuscate(xValue, cField, cSource, lLoad)
+    EndIf
+Return xValue   
+
+/*/{Protheus.doc} FATPDActive
+    Função que verifica se a melhoria de Dados Protegidos existe.
+    @type  function
+    @sample FATPDActive()
+    @author Squad CRM & Faturamento
+    @since 17/12/2019
+    @version P12.1.27
+    @return lRet, Logico, Indica se o sistema trabalha com Dados Protegidos
+/*/
+Static Function FATPDActive()
+    Static _lFTPDActive := Nil
+    If _lFTPDActive == Nil
+        _lFTPDActive := ( GetRpoRelease() >= "12.1.027" .Or. !Empty(GetApoInfo("FATCRMPD.PRW")) )  
+    Endif
+Return _lFTPDActive

@@ -1,0 +1,524 @@
+#Include "Totvs.ch"
+#Include "RPTDef.ch"
+#Include "FWPrintSetup.ch"
+
+//-------------------------------------------------
+/*/{Protheus.doc} RCOM001
+Romaneio de entrada
+
+@type function
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 08/09/2021
+
+@param Posicionado, logical, Define se registro esta posicionado ou não. Valor padrão .f.
+/*/
+//-------------------------------------------------
+User Function RCOM001( Posicionado as Logical )
+    
+    Local oPrinter as Object
+    
+    Default Posicionado := .f.
+
+    oPrinter := PrinterDef( Posicionado )
+    if ( oPrinter != nil )
+        Imprime( @oPrinter )
+    endif
+
+Return
+
+//-------------------------------------------------
+/*/{Protheus.doc} PrinterDef
+Cria objeto de impressão.
+
+@type function
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 08/09/2021
+
+@param Posicionado, logical, Define se registro esta posicionado ou não
+
+@return Object, Objeto FWMSPrinter
+/*/
+//-------------------------------------------------
+Static Function PrinterDef( Posicionado as Logical )
+
+    Local aDevice         as Array
+    Local cDevice         as Character
+    Local cLocal          as Character
+    Local cSession  	  as Character
+    Local lAdjustToLegacy as Logical
+    Local lDisableSetup   as Logical
+    Local lOk             as Logical
+    Local nLocal          as Numeric
+    Local nOrientation    as Numeric
+    Local nPrintType      as Numeric
+    Local oPrinter        as Object
+    Local oSetup          as Object
+
+    Pergunte( 'RCOM001', .F., 'Romaneio de Entrada' )
+    cSession := GetPrinterSession()
+    cLocal := "/spool"
+    
+    lAdjustToLegacy := .F.
+    lDisableSetup := .T.
+    lOk := .f.
+
+    //PD_ISTOTVSPRINTER=1
+    //PD_DISABLEDESTINATION=2
+    //PD_DISABLEORIENTATION=4
+    //PD_DISABLEPAPERSIZE=8
+    //PD_DISABLEPREVIEW=16
+
+    aDevice      := {"DISCO","SPOOL","EMAIL","EXCEL","HTML","PDF"}
+    nLocal       := iIf( fwGetProfString( cSession, "LOCAL","SERVER", .T. ) == "SERVER", 1 ,2 )
+    nOrientation := iIf( fwGetProfString( cSession, "ORIENTATION","PORTRAIT", .T. ) == "PORTRAIT", 1, 2 )
+    cDevice      := iIf( Empty( fwGetProfString( cSession, "PRINTTYPE", "SPOOL", .T. ) ), "PDF", fwGetProfString( cSession, "PRINTTYPE", "SPOOL", .T. ) )
+    nPrintType   := aScan( aDevice, { |x| x == cDevice } )
+
+    oSetup := FWPrintSetup():New( PD_ISTOTVSPRINTER + PD_DISABLEORIENTATION + PD_DISABLEPAPERSIZE + PD_DISABLEMARGIN, 'Romaneio de Entrada' )
+    oSetup:SetProperty( PD_PRINTTYPE   , nPrintType    )
+    oSetup:SetProperty( PD_ORIENTATION , nOrientation  )
+    oSetup:SetProperty( PD_DESTINATION , nLocal        )
+    oSetup:SetProperty( PD_MARGIN      , {60,60,60,60} )
+    oSetup:SetProperty( PD_PAPERSIZE   , DMPAPER_A4    )
+    oSetup:CQTDCOPIA := "1"
+    
+    if !Posicionado
+        oSetup:SetUserParms( { || Pergunte( 'RCOM001', .t., 'Romaneio de Entrada' ) } )
+    endif
+
+    if ( oSetup:Activate() == PD_OK )
+        if posicionado
+            SetMVValue( 'RCOM001', 'MV_PAR01', Z00->Z00_NUM )
+        endif
+        pergunte('RCOM001', .f.)
+
+        fwWriteProfString( cSession, "LOCAL"      , iIf( oSetup:GetProperty( PD_DESTINATION ) == 1, "SERVER"  , "CLIENT"    ), .T. )
+        fwWriteProfString( cSession, "PRINTTYPE"  , iIf( oSetup:GetProperty( PD_PRINTTYPE   ) == 2, "SPOOL"   , "PDF"       ), .T. )
+        fwWriteProfString( cSession, "ORIENTATION", iIf( oSetup:GetProperty( PD_ORIENTATION ) == 1, "PORTRAIT", "LANDSCAPE" ), .T. )
+        
+        oPrinter := FWMSPrinter():New(alltrim(Z00->Z00_NUM), IMP_PDF, lAdjustToLegacy, cLocal, lDisableSetup, .f. )
+        oPrinter:setCopies( val( if( posicionado, "1", oSetup:cQtdCopia )) )
+
+        oPrinter:SetParm( "-RFS")
+        oPrinter:SetResolution( 78 ) //Tamanho estipulado para a Danfe
+        oPrinter:SetPortrait()
+        oPrinter:SetPaperSize( oSetup:GetProperty( PD_PAPERSIZE) )
+        oPrinter:SetMargin( oSetup:GetProperty( PD_MARGIN )[1], oSetup:GetProperty( PD_MARGIN )[2], oSetup:GetProperty( PD_MARGIN )[3], oSetup:GetProperty( PD_MARGIN )[4] )
+        oPrinter:lServer := (oSetup:GetProperty(PD_DESTINATION) == AMB_SERVER)
+
+        do case
+            case ( oSetup:GetProperty(PD_PRINTTYPE) == IMP_PDF )
+                oPrinter:nDevice := IMP_PDF
+                oPrinter:cPathPDF := oSetup:aOptions[PD_VALUETYPE]
+            // fim case
+
+            case ( oSetup:GetProperty(PD_PRINTTYPE) == IMP_SPOOL )
+                oPrinter:nDevice := IMP_SPOOL
+                fwWriteProfString( cSession, "DEFAULT", oSetup:aOptions[PD_VALUETYPE], .T.)
+                oPrinter:cPrinter := oSetup:aOptions[PD_VALUETYPE]
+            // fim case
+        endcase
+    endif
+
+Return oPrinter
+
+//-------------------------------------------------
+/*/{Protheus.doc} Imprime
+Imprime os dados do relatório.
+
+@type function
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 08/09/2021
+
+@param oPrinter, object, Objeto FwmsPrinter passado por referencia
+/*/
+//-------------------------------------------------
+Static Function Imprime( oPrinter as Object )
+
+    Local bError as CodeBlock
+    Local oSolvs as Object
+    
+    Private aEmpresa  as Array
+    Private cNomeFont as Character
+    Private Placa     as Character
+    Private Motorista as Character
+    Private nLinAtu   as Numeric
+    Private nTamLin   as Numeric
+    Private nLinFin   as Numeric
+    Private nColIni   as Numeric
+    Private nColFin   as Numeric
+	Private PosNome   as Numeric
+	Private PosEnd    as Numeric
+	Private PosBai    as Numeric
+	Private PosMun    as Numeric
+	Private PosTel    as Numeric
+	Private PosEst    as Numeric
+    Private nPagina   as Numeric
+    Private nPaginas  as Numeric
+    PRIVATE oFont10N  as Object
+	PRIVATE oFont07N  as Object
+	PRIVATE oFont07   as Object
+	PRIVATE oFont08   as Object
+	PRIVATE oFont08N  as Object
+	PRIVATE oFont09N  as Object
+	PRIVATE oFont09   as Object
+	PRIVATE oFont10   as Object
+	PRIVATE oFont11   as Object
+	PRIVATE oFont12   as Object
+	PRIVATE oFont11N  as Object
+	PRIVATE oFont18N  as Object
+	PRIVATE OFONT12N  as Object
+
+    cNomeFont := 'Courier New'
+
+    oFont07   := TFontEx():New( oPrinter, cNomeFont, 07, 07, .F., .T., .F. )// 3
+    oFont07N  := TFontEx():New( oPrinter, cNomeFont, 07, 07, .T., .T., .F. )// 2
+
+    oFont08   := TFontEx():New( oPrinter, cNomeFont, 08, 08, .F., .T., .F. )// 4
+	oFont08N  := TFontEx():New( oPrinter, cNomeFont, 08, 08, .T., .T., .F. )// 5
+    
+    oFont09   := TFontEx():New( oPrinter, cNomeFont, 09, 09, .F., .T., .F. )// 7
+    oFont09N  := TFontEx():New( oPrinter, cNomeFont, 09, 09, .T., .T., .F. )// 6
+
+    oFont10   := TFontEx():New( oPrinter, cNomeFont, 10, 10, .F., .T., .F. )// 8
+    oFont10N  := TFontEx():New( oPrinter, cNomeFont, 10, 10, .T., .T., .F. )// 1
+	
+	oFont11   := TFontEx():New( oPrinter, cNomeFont, 11, 11, .F., .T., .F. )// 9
+	oFont11N  := TFontEx():New( oPrinter, cNomeFont, 11, 11, .T., .T., .F. )// 11
+    
+    oFont12   := TFontEx():New( oPrinter, cNomeFont, 12, 12, .F., .T., .F. )// 10
+    OFONT12N  := TFontEx():New( oPrinter, cNomeFont, 12, 12, .T., .T., .F. )// 12
+	
+	oFont18N  := TFontEx():New( oPrinter, cNomeFont, 18, 18, .T., .T., .F. )// 12
+	
+    nLinAtu := 000
+    nTamLin := 010
+    nLinFin := 820
+    nColIni := 010
+    nColFin := 620
+
+    oSolvs := TSolvs():New()
+        bError := ErrorBlock( { |oError| oSolvs:TrataErro( oError ) } )
+            Begin SEQUENCE
+                oSolvs:AbreArea( 'Z00' )
+                oSolvs:AbreArea( 'Z01' )
+                oSolvs:AbreArea( 'SA2' )
+                oSolvs:AbreArea( 'SB1' )
+                oSolvs:AbreArea( 'SA4' )
+                oSolvs:AbreArea( 'DA3' )
+                oSolvs:AbreArea( 'DA4' )
+
+                if !Z00->(dbSeek( fwXfilial('Z00') + MV_PAR01 ))
+                    UserException('Registro de romaneio não encontrado!')
+                endif
+
+                if !Z01->(dbSeek( fwXfilial('Z01') + MV_PAR01 ))
+                    UserException('Registro de itens romaneio não encontrados!')
+                endif
+
+                if !SA2->(dbSeek( fwXFilial('SA2') + Z00->Z00_FORN + Z00->Z00_LOJA ))
+                    UserException('Fornecedor não encontrado no cadastro!')
+                endif
+
+                if !SA4->(dbSeek( fwXFilial('SA4') + Z00->Z00_TRANSP ))
+                    UserException('Fornecedor não encontrado no cadastro!')
+                endif
+
+                Placa := ''
+                Motorista := ''
+                if DA3->(dbSeek( fwXFilial('DA3') + Z00->Z00_VEIC ))
+                    Placa := alltrim(DA3->DA3_PLACA)
+
+                    if DA4->(dbSeek( fwXFilial('DA4') + DA3->DA3_MOTORI ))
+                        Motorista := alltrim(DA4->DA4_NOME)
+                    endif
+                endif
+
+                nPaginas := 0
+                while !Z01->(EOF()) .and. ( Z01->Z01_FILIAL == fwXfilial('Z01') ) .and. ( Z01->Z01_NUM == MV_PAR01 )
+                    nPaginas++
+
+                    Z01->(dbSkip())
+                enddo
+                Z01->(dbGotOp())
+                Z01->(dbSeek( fwXfilial('Z01') + MV_PAR01 ))
+
+                aEmpresa := FWSM0Util():GetSM0Data( cEmpAnt, cFilAnt )				
+				PosNome := aScan( aEmpresa, { |x| x[1] == 'M0_NOMECOM' } ) 
+				PosEnd  := aScan( aEmpresa, { |x| x[1] == 'M0_ENDCOB'  } )
+				PosBai  := aScan( aEmpresa, { |x| x[1] == 'M0_BAIRCOB' } )
+				PosMun  := aScan( aEmpresa, { |x| x[1] == 'M0_CIDCOB'  } )
+				PosTel  := aScan( aEmpresa, { |x| x[1] == 'M0_TEL'     } )
+				PosEst  := aScan( aEmpresa, { |x| x[1] == 'M0_ESTENT'  } )
+
+                nPagina := 0
+                while !Z01->(EOF()) .and. ( Z01->Z01_FILIAL == fwXfilial('Z01') ) .and. ( Z01->Z01_NUM == MV_PAR01 )
+                    nPagina++
+
+                    ImpCabec( @oPrinter )
+                    ImpDet( @oPrinter )
+
+                    Z01->(dbSkip())
+                enddo
+                
+                oPrinter:Preview()
+            Recover
+                FWAlertError( oSolvs:GetSimpleError(), cCadastro )
+            End SEQUENCE
+        ErrorBlock( bError )
+        MsUnlockAll()
+    FwFreeVar( @oSolvs )
+
+Return
+
+//-------------------------------------------------
+/*/{Protheus.doc} ImpCabec
+Imprime cabeçalho do relatório.
+
+@type function
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 08/09/2021
+
+@param oPrinter, object, Objeto FwmsPrinter passado por referencia
+/*/
+//-------------------------------------------------
+Static function ImpCabec( oPrinter as Object )
+
+    Local cLogo      as Character
+    local cLogoTotvs as Character
+    local cStartPath as Character
+
+    oPrinter:StartPage()
+    oPrinter:Box( 000, 000, nLinFin, nColFin )
+
+    cLogoTotvs := lower("Powered_by_TOTVS.bmp")
+    cStartPath := GetSrvProfString("Startpath","")
+    cLogo := GetSrvProfString("Startpath","") + 'lgmid.png'
+
+	oPrinter:SayBitmap( 010, 003, cLogo, 090, 090 )
+
+    //Logotipo Rodape
+    if (file(cLogoTotvs) .or. Resource2File( cLogoTotvs, cStartPath + cLogoTotvs ))
+        oPrinter:SayBitmap( nLinFin + 1, 484, cLogoTotvs, 120, 20 )
+    endif
+
+    nLinAtu := 10
+    nLinAtu += 5
+    oPrinter:Say( nLinAtu, nColIni + 180, "Romaneio de Entrada Número: " + Z00->Z00_NUM, oFont10N:oFont )
+
+    nLinAtu += 20
+    oPrinter:Say( nLinAtu, nColIni + 200, alltrim(aEmpresa[PosNome,2]), oFont10:oFont )
+
+    nLinAtu += 10
+    oPrinter:Say( nLinAtu, nColIni + 200, alltrim(aEmpresa[PosEnd,2]), oFont10:oFont )
+	
+	nLinAtu += 10
+    oPrinter:Say( nLinAtu, nColIni + 200, alltrim(aEmpresa[PosBai,2]) + ' - ' + alltrim(aEmpresa[PosEst,2]), oFont10:oFont )
+	
+	nLinAtu += 10
+    oPrinter:Say( nLinAtu, nColIni + 200, alltrim(aEmpresa[PosMun,2]) + ' - ' + alltrim(aEmpresa[PosEst,2]), oFont10:oFont )
+	
+	nLinAtu += 10
+    oPrinter:Say( nLinAtu, nColIni + 200, alltrim(aEmpresa[PosTel,2]) + ' E-mail:', oFont10:oFont )
+
+    nLinAtu += 20
+    oPrinter:Say( nLinAtu, nColIni + 10, 'Entrada: ' + dToc(Z00->Z00_EMISSA), oFont10:oFont )
+    oPrinter:Say( nLinAtu, nColIni + 200, 'Hora: ' + Time(), oFont10:oFont )
+    oPrinter:Say( nLinAtu, 520, 'Página ' + alltrim(cValToChar(nPagina)) + ' de ' + alltrim(cValToChar(nPaginas)), oFont10:oFont )
+
+    nLinAtu += 5
+    oPrinter:Line( nLinAtu, 000, nLinAtu, nColFin )
+
+    nLinAtu += 10
+    oPrinter:Say( nLinAtu, nColIni + 10, "Entidade        " , oFont10N:oFont )
+    oPrinter:Say( nLinAtu, nColIni + 120, alltrim(SA2->A2_COD) + '/' + AllTrim(SA2->A2_LOJA) + ' - ' + alltrim(SA2->A2_NOME) , oFont10:oFont )
+
+    nLinAtu += 10
+    oPrinter:Say( nLinAtu, nColIni + 10, "Endereço        " , oFont10N:oFont )
+    oPrinter:Say( nLinAtu, nColIni + 120, alltrim(SA2->A2_END) , oFont10:oFont )
+    
+    nLinAtu += 10
+    oPrinter:Say( nLinAtu, nColIni + 10, "Bairro/CEP      " , oFont10N:oFont )
+    oPrinter:Say( nLinAtu, nColIni + 120, alltrim(SA2->A2_BAIRRO) + '/' + alltrim( TRANSFORM( SA2->A2_CEP, PesqPict( 'SA2', 'A2_CEP' ) ) ) , oFont10:oFont )
+    
+    nLinAtu += 10
+    oPrinter:Say( nLinAtu, nColIni + 10, "Cidade/Estado   " , oFont10N:oFont )
+    oPrinter:Say( nLinAtu, nColIni + 120, alltrim(SA2->A2_MUN) + '/' + alltrim(SA2->A2_EST) , oFont10:oFont )
+    
+    nLinAtu += 10
+    oPrinter:Say( nLinAtu, nColIni + 10, "Transportador   " , oFont10N:oFont )
+    oPrinter:Say( nLinAtu, nColIni + 120, alltrim(SA4->A4_COD) + ' - ' + alltrim(SA4->A4_NOME) , oFont10:oFont )
+    
+    nLinAtu += 10
+    oPrinter:Say( nLinAtu, nColIni + 10, "Placa/Motorista " , oFont10N:oFont )
+    oPrinter:Say( nLinAtu, nColIni + 120, Placa + '/' + Motorista , oFont10:oFont )
+
+    nLinAtu += 5
+    oPrinter:Line( nLinAtu, 000, nLinAtu, nColFin )
+
+    nLinAtu += 10
+
+Return
+
+//-------------------------------------------------
+/*/{Protheus.doc} ImpDet
+Imprime produto da pesagem.
+
+@type function
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 08/09/2021
+
+@param oPrinter, object, Objeto FwmsPrinter passado por referencia
+/*/
+//-------------------------------------------------
+Static Function ImpDet( oPrinter as Object )
+
+    Local aObs   as Array
+    Local DirDoc as Character
+    Local Aux    as Character
+	Local Codigo as Character
+	Local Ph     as Character
+	Local Pent   as Character
+	Local Tara   as Character
+	Local Pliq   as Character
+    Local Obs    as character
+    Local Pesq   as Character
+    Local i      as numeric
+	
+    dirdoc := SuperGetMv('MV_DIRDOC', .f., '') + '\co' + alltrim(cEmpAnt) + '\shared\'
+
+    SB1->(dbGotOp())
+    SB1->( dbSeek( fwXFilial('SB1') + Z01->Z01_PROD ) )
+
+	Codigo := Padr(alltrim(substr(alltrim(SB1->B1_COD) + ' - ' + alltrim(SB1->B1_DESC), 1, 35)), 35, ' ')
+	Ph     := PadR("0,00", 10, ' ')
+	Pent   := PadR( alltrim( Transform( Z01->Z01_pENT                  , PesqPict( 'Z01', 'Z01_pENT'   ) ) ) + ' ' + SB1->B1_UM, 21, ' ' )
+	Tara   := PadR( alltrim( Transform( Z01->Z01_PSAIDA                , PesqPict( 'Z01', 'Z01_PSAIDA' ) ) ) + ' ' + SB1->B1_UM, 13, ' ' )
+	Pliq   := PadR( alltrim( Transform( Z01->Z01_pENT - Z01->Z01_PSAIDA, PesqPict( 'Z01', 'Z01_PSAIDA' ) ) ) + ' ' + SB1->B1_UM, 17, ' ' )    
+
+    oPrinter:Box( nlinAtu, 005, nLinAtu + 125, nColFin - 005 )
+    
+    nLinAtu += 10
+    oPrinter:Say( nLinAtu, 015, "Produto                              PH      Peso Bruto           Tara         Peso Líquido", OFONT10N:oFont )
+
+    nLinAtu += 12
+    oPrinter:Say( nLinAtu, 015, Codigo + Ph + Pent + Tara + Pliq, OFONT10:oFont )
+
+    nLinAtu += 5
+    oPrinter:Box( nlinAtu, 006, nLinAtu + 60, nColFin - 006 )
+
+    nLinAtu += 5
+    oPrinter:Box( nlinAtu, 030, nLinAtu + 50, nColFin - 007 )
+
+    oPrinter:Say( nLinAtu + 30, 013, '%' , OFONT10:oFont )
+    oPrinter:Say( nLinAtu + 40, 013, 'Kg', OFONT10:oFont )
+
+    nLinAtu += 10
+    oPrinter:Say( nLinAtu, 030, "       Impureza          Umidade          Ardidos          Quebrados          Verdes          Reserva Técnica", OFONT08N:oFont )
+    
+    nLinAtu += 05
+    oPrinter:Line( nLinAtu, 030, nLinAtu, nColFin - 007 )
+
+    nLinAtu += 10
+    oPrinter:Say( nLinAtu, 030, "         0,00              0,00              0,00               0,00            0,00                     0,00", OFONT08:oFont )
+
+    nLinAtu += 05
+    oPrinter:Line( nLinAtu, 030, nLinAtu, nColFin - 007 )
+
+    nLinAtu += 10
+    oPrinter:Say( nLinAtu, 030, "         0,00              0,00              0,00               0,00            0,00                     0,00", OFONT08:oFont )
+
+    nLinAtu += 10
+    oPrinter:Line( nLinAtu - 50, 130, nLinAtu, 130 )
+    oPrinter:Line( nLinAtu - 50, 225, nLinAtu, 225 )
+    oPrinter:Line( nLinAtu - 50, 315, nLinAtu, 315 )
+    oPrinter:Line( nLinAtu - 50, 410, nLinAtu, 410 )
+    oPrinter:Line( nLinAtu - 50, 510, nLinAtu, 510 )
+
+    nLinAtu += 20
+    oPrinter:Say( nLinAtu, 015, " Total de Descontos      Liquido - Desconto       Unitário         Total      N.F. Prod       N.F. Entrada", OFONT08N:oFont )
+    
+    nLinAtu += 10
+    oPrinter:Say( nLinAtu, 015, "               0,00                    0,00           0,00          0,00           0,00               0,00", OFONT08:oFont )
+
+    nLinAtu += 30
+    oPrinter:Say( nLinAtu, 010, "                                                   Observação", OFONT08N:oFont )
+
+    obs := alltrim(Z00->Z00_OBS)
+    aObs := {}
+    if !Empty(obs)
+        while (len(obs) > 110)
+            aux := substr(obs, 1, 100)
+            aAdd( aObs, Aux )
+
+            obs := substr(obs, 101)
+        enddo
+        aAdd( aObs, obs )
+    endif
+
+    for i := 1 to len(aObs)
+        nLinAtu += 10
+        oPrinter:Say( nLinAtu, 010, aObs[i], OFONT08:oFont )
+
+        if ( (nLinAtu + 10) >= nLinFin)
+            ImpCabec( @oPrinter )
+        endif
+    next
+
+    nLinAtu += 10
+    oPrinter:Say( nLinAtu, 010, "                   Primeira Pesagem", OFONT08N:oFont )
+    oPrinter:Say( nLinAtu, 350, "                   Segunda Pesagem", OFONT08N:oFont )
+
+    nLinAtu += 10
+    oPrinter:Say( nLinAtu, 010, "Data: " + dToc(Z01->Z01_DTENT) + " " + Z01->Z01_HENT, OFONT08:oFont )
+    oPrinter:Say( nLinAtu, 315, "Data: " + dToc(Z01->Z01_DTSAI) + " " + Z01->Z01_SSAI, OFONT08:oFont )
+
+    nLinAtu += 10
+    oPrinter:Say( nLinAtu, 010, "Peso: " + Transform( Z01->Z01_PENT, PesqPict( 'Z01', 'Z01_PENT' ) )  + ' ' + SB1->B1_UM, OFONT08:oFont )
+    oPrinter:Say( nLinAtu, 315, "Peso: " + Transform( Z01->Z01_PSAIDA, PesqPict( 'Z01', 'Z01_PSAIDA' ) ) + ' ' + SB1->B1_UM, OFONT08:oFont )
+
+    nLinAtu += 10
+
+    Pesq := "SELECT "
+    Pesq += "	ACB.ACB_OBJETO "
+    Pesq += "FROM "
+    Pesq += "	" + RetSqlName('AC9') + " AC9 "
+    Pesq += "INNER JOIN " + RetSqlName('ACB') + " ACB ON "
+    Pesq += "	ACB.ACB_FILIAL = '" + fwXFilial('ACB') + "' "
+    Pesq += "	AND ACB.ACB_CODOBJ = AC9.AC9_CODOBJ "
+    Pesq += "	AND ACB.D_E_L_E_T_ = ' ' "
+    Pesq += "WHERE "
+    Pesq += "	AC9_FILIAL = '" + fwXFilial('AC9') + "' "
+    Pesq += "	AND AC9_ENTIDA = 'Z00' "
+    Pesq += "	AND RTRIM(LTRIM(AC9_CODENT)) = '" + alltrim(Z00->Z00_FILIAL + Z00->Z00_NUM) + "' "
+    Pesq += "	AND AC9.D_E_L_E_T_ = ' ' "
+    Pesq += "ORDER BY "
+    Pesq += "	ACB.ACB_OBJETO ASC "
+    Pesq := MpSysOpenQuery( Pesq )
+
+    while !(pesq)->(EOF())
+
+        if (File( dirdoc + (pesq)->ACB_OBJETO ) .and. ( 'E.JPG' $ (pesq)->ACB_OBJETO ))
+            oPrinter:SayBitmap( nLinAtu, 003, dirdoc + (pesq)->ACB_OBJETO, 300, 300 )
+        endif
+
+        if (File( dirdoc + (pesq)->ACB_OBJETO ) .and. ( 'S.JPG' $ (pesq)->ACB_OBJETO ))
+            oPrinter:SayBitmap( nLinAtu, 315, dirdoc + (pesq)->ACB_OBJETO, 300, 300 )
+        endif
+
+        (pesq)->(dbSkip())
+
+    enddo
+    (pesq)->(dbCloseArea())
+
+Return

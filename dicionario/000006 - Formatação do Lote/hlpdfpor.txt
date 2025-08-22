@@ -1,0 +1,5 @@
+000095PC2_TPOP                      USER                                                        Tipo da Ordem de Produç„o :
+F - Firme
+P - Prevista
+(Campo atualizado na abertura de OP/MRP
+000004PC2_XLOTE                     USER                                                        Lote000024PC2_XDTVLD                    USER                                                        Data de validade do lote

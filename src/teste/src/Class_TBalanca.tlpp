@@ -1,0 +1,517 @@
+#include "totvs.ch"
+
+//-----------------------------------------------
+/*/{Protheus.doc} TBalanca
+Comunicação com Balança.
+
+@type class
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 30/08/2021
+/*/
+//-----------------------------------------------
+class TBalanca from TSolvs
+
+	Private Data Porta    as Character
+	Private Data Velocid  as Character
+    Private Data Paridade as Character
+    Private Data Bits     as Character
+    Private Data StopBits as Character
+    Private Data Fluxo    as Character
+	Private Data PortaIP  as Character
+	Private Data Url      as Character
+	Private Data Modelo   as Character
+	Private Data Usuario  as Character
+	Private data Senha    as Character
+	Private Data UrlCam   as Character
+	Private Data Camera   as Character
+    Private Data Tempo    as Numeric
+    Private Data Ativo    as Logical
+	Private Data Serial   as Logical
+
+    Private Method Init()
+    Private Method OffLine() as Numeric 
+	Private Method GetBalanca() as Logical
+	Private Method LeSerial() as Numeric
+	Private Method LeTCPIP() as Numeric
+
+	Public method new() CONSTRUCTOR
+    Public Method Pesa() as Numeric 
+	public Method GetFoto( Arquivo as Character ) as Character
+
+endClass
+
+//-----------------------------------------------
+/*/{Protheus.doc} TBalanca::GetFoto( Arquivo as Character ) as Character
+Dispara a captura de imagens
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 16/09/2021
+
+@param Arquivo, Character, Nome do Arquivo desejado
+
+@return Character, Nome do arquivo Gerado
+/*/
+//-----------------------------------------------
+Method GetFoto( Arquivo as Character ) as Character Class TBalanca
+
+Return Self:CapturaIntelbas( Self:Usuario, Self:Senha, Self:UrlCam, Self:Camera, Arquivo )
+
+//-----------------------------------------------
+/*/{Protheus.doc} TBalanca::new
+Método construtor da Classe.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 30/08/2021
+
+@return object, Instancia da Classe TBalanca
+/*/
+//-----------------------------------------------
+method new() class TBalanca
+
+    _Super:New()
+    Self:cClassName := 'TBalanca'
+    Self:Init()
+
+return self
+
+//-----------------------------------------------
+/*/{Protheus.doc} TBalanca::Init
+Inicializa propriedades da Classe.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 30/08/2021
+/*/
+//-----------------------------------------------
+Method Init() Class TBalanca
+
+    Self:Ativo := SuperGetMv("LW_PBAL", .F., .F.) // indica se a comunicação esta ativa
+
+	Self:Velocid  := ''
+    Self:Paridade := ''
+    Self:Bits     := ''
+    Self:StopBits := ''
+    Self:Fluxo    := ''
+    Self:Tempo    := 0 
+    Self:Porta    := ''
+	Self:Serial   := .F.
+	Self:PortaIP  := ''
+	Self:Url      := ''
+
+	Self:Usuario  := 'admin'
+	Self:Senha    := '1234'
+	Self:UrlCam   := '172.20.76.112'
+	Self:Camera   := '3'
+
+Return
+
+//-----------------------------------------------
+/*/{Protheus.doc} TBalanca::Pesa( Balanca as Character, IsEntrada as Logical ) as Numeric
+Realiza a pesagem da balança.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 30/08/2021
+
+@return Numeric, Peso retornado
+/*/
+//-----------------------------------------------
+Method Pesa() as Numeric Class TBalanca
+
+    Local Erro as CodeBlock
+	Local Balanca as Character
+
+	Balanca := ''
+	Erro := ErrorBlock( { |oError| Self:TrataErro( oError ) } )
+	Begin SEQUENCE
+		if !Self:Ativo
+            Peso := Self:OffLine()
+        else
+			if Self:GetBalanca()			
+				if Self:Serial
+					Peso := Self:LeSerial()
+				else
+					Peso := Self:LeTcpIP()
+				endif
+			endif
+        endif
+	Recover
+		Peso := 0
+        FWAlertError( Self:GetLastError(), cCadastro )
+	End SEQUENCE
+	ErrorBlock( Erro )
+
+Return Peso
+
+//-----------------------------------------------
+/*/{Protheus.doc} TBalanca::OffLine() as Numeric
+Caso a Balança esteja offline, cria uma tela para pesagem.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 30/08/2021
+
+@return Numeric, Peso retornado
+/*/
+//-----------------------------------------------
+Method OffLine() as Numeric Class TBalanca
+
+    Local bConfirm   as CodeBlock
+    Local bSair      as CodeBlock
+    Local nGet1      as numeric
+    Local oGet1      as Object
+    Local oSay1      as Object
+    Local oModal     as Object
+    Local oContainer as Object
+
+    aButtons := {}
+    nGet1 := 0
+
+    bSair := { || oModal:DeActivate(), nGet1 := 0 }
+    bConfirm := { || oModal:DeActivate() }
+
+    oModal  := FWDialogModal():New()       
+        oModal:setTitle("Entrada manual de peso")
+        oModal:EnableFormBar( .T. )
+        oModal:SetCloseButton( .F. )
+        oModal:SetEscClose( .F. )
+        
+        //Seta a altura e Largura da janela em pixel
+        oModal:setSize(180, 180)
+    
+        oModal:createDialog()
+        oModal:CreateFormBar()
+        oModal:AddButton( 'Confirmar', bConfirm, 'Confirmar', , .T., .F., .T., )
+        oModal:AddButton( 'Sair'     ,bSair    , 'Sair'     , , .T., .F., .T., )
+
+        oContainer := TPanel():New( ,,, oModal:getPanelMain() )
+        oContainer:Align := CONTROL_ALIGN_ALLCLIENT
+
+        @ 012, 004 SAY oSay1 PROMPT "Informe o peso:" SIZE 043, 007 OF oContainer COLORS 0, 16777215 PIXEL
+        @ 010, 044 MSGET oGet1 VAR nGet1 SIZE 056, 010 OF oContainer PICTURE '@E 9,999,999,999.99999' COLORS 0, 16777215 PIXEL         
+    oModal:Activate()
+
+Return nGet1
+
+//-----------------------------------------------
+/*/{Protheus.doc} TBalanca::GetBalanca
+PEsquisa na tabela customizada e alimenta propriedades da classe.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 30/08/2021
+/*/
+//-----------------------------------------------
+Method GetBalanca() as Logical Class TBalanca
+
+	Local Lret as Logical
+	
+	lRet := .F.
+	if Pergunte('BALANCA', .t., 'Selecione a Balança')
+		dbSelectArea('Z02')
+		Z02->(dbSetOrder(1))
+		Z02->(DbOrderNickName('Z02ID'))
+		if !Z02->(dbSeek( fwXFilial("Z02") + MV_PAR01 ))
+			UserException('Balança não encontrada!')
+		endif
+		
+		lRet := .T.
+		Self:Porta    := alltrim(Z02->Z02_PORTA)
+		Self:Velocid  := alltrim(cValToChar(Z02->Z02_VELO))
+		Self:Paridade := alltrim(Z02->Z02_PARI)
+		Self:Bits     := alltrim(Z02->Z02_BIT)
+		Self:StopBits := alltrim(Z02->Z02_STOP)
+		Self:Fluxo    := alltrim(Z02->Z02_FLUXO)
+		Self:Tempo    := Z02->Z02_TEMPO 
+		Self:Serial   := Z02->Z02_MODELO == '1'
+		Self:PortaIP  := Z02->Z02_PIP
+		Self:Url      := Z02->Z02_IP
+		Self:Modelo   := Z02->Z02_TIPO
+
+		Self:Usuario  := Z02->Z02_USER
+		Self:Senha    := Z02->Z02_PASS
+		Self:UrlCam   := Z02->Z02_URL
+		Self:Camera   := Z02->Z02_CANAL
+	endif
+
+Return Lret
+
+//-----------------------------------------------
+/*/{Protheus.doc} TBalanca::LeSerial() as Numeric
+Comunica com a balança em modo serial.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 31/08/2021
+
+@return Numeric, Peso lido
+/*/
+//-----------------------------------------------
+Method LeSerial() as Numeric Class TBalanca
+
+	Local cPesoLido as Character
+	Local cLido     as Character
+	Local cSegNor   as Character
+    Local cSegAcr   as Character
+	Local cBuffer   as Character
+	Local cConfig   as Character
+    Local Peso      as Numeric
+    Local nX        as Numeric
+    Local nAux      as Numeric
+	Local nH        as Numeric
+	Local nTaman    as Numeric
+	Local nPosIni   as Numeric
+	Local nPosFim   as Numeric
+
+	//Montando a configuração (Porta:Velocidade,Paridade,Bits,Stop)
+	cConfig := Self:Porta+":"+Self:Velocid+","+Self:Paridade+","+Self:Bits+","+Self:StopBits
+	cPesoLido := ''
+	
+	If !MSOpenPort(@nH,cConfig)
+		UserException("Falha ao conectar com a porta serial.")
+	endif
+	
+	do case
+		//Se a marca da balança for LIDER
+		//1=CONFIANCA;2=JUNDIAI;3=TOLEDO;4=LIDER;5=OUTRO
+		case (Self:Modelo == '4')
+			For nX := 1 To 50
+				//Obtendo o tempo de espera antes de iniciar a leitura da balança    
+				Sleep(Self:Tempo)
+				MSRead(nH,@cBuffer)
+				
+				//Se a linha retornada for igual ao tamanho limite, encerra o laço
+				If (Len(AllTrim(cBuffer)) == MAX_BUFFER)
+					Exit
+				EndIf
+			Next
+			
+			//Verifica onde começa o "E" e diminui 1 caracter
+			nPosFim := At("E", cBuffer) - 1
+	
+			//Obtendo apenas o peso da balança
+			cPesoLido := StrTran(AllTrim(SubStr(cBuffer,2,nPosFim)),".","")
+		// fim case
+		
+		//1=CONFIANCA;2=JUNDIAI;3=TOLEDO;4=LIDER;5=OUTRO
+		case (Self:Modelo == '3')
+			//Se não conseguir abrir a porta, tenta mais uma vez, remapeando
+			/*If ! lRet
+				//Força o fechamento e abertura da porta novamente
+				WaitRun("NET USE "+Self:Porta+": /DELETE")
+				WaitRun("NET USE "+Self:Porta+" ")
+				
+				lOk := 
+				
+				If !MSOpenPort(@nH,cConfig)
+					MsgStop("<b>Falha</b> ao conectar com a porta serial. Detalhes:"+;
+							"<br><b>Porta:</b> "        +Self:Porta+;
+							"<br><b>Velocidade:</b> "    +cVelocid+;
+							"<br><b>Paridade:</b> "        +cParidade+;
+							"<br><b>Bits:</b> "            +cBits+;
+							"<br><b>Stop Bits:</b> "    +cStopBits,"Atenção")
+				EndIf
+			EndIf*/
+			
+			//Inicializa balança
+			MsWrite(nH,CHR(5))
+			nTaman := 16
+			
+			//Realiza a leitura
+			For nX := 1 To 50
+				//Obtendo o tempo de espera antes de iniciar a leitura da balança e realiza a leitura    
+				Sleep(Self:Tempo)
+				MSRead(nH,@cBuffer)
+				
+				//Obtendo os caracteres inciais
+				cBuffer := AllTrim(SubStr(AllTrim(cBuffer),1,nTaman))
+				
+				//Se a linha retornada for igual ao tamanho limite
+				If (Len(AllTrim(cBuffer)) >= nTaman)
+					Exit
+				EndIf
+			Next				
+			
+			//Verifica onde começa o "q" e soma 2 espaços
+			nPosIni := At("q",cBuffer)+2
+
+			//Obtendo apenas o peso da balança
+			cPesoLido := SubStr(cBuffer,nPosIni,nPosIni+3)
+		// fim case
+
+		//1=CONFIANCA;2=JUNDIAI;3=TOLEDO;4=LIDER;5=OUTRO
+		case (Self:Modelo == '5')
+			cBuffer := ''
+			msRead(nH,@cBuffer)
+
+			if Empty(cBuffer)
+				UserException('Leitura retornada em branco.')
+			endif
+
+			if ('EL_' $ cBuffer)
+				cPesoLido := substr( cBuffer, 1, 6 )
+			else
+				cPesoLido := substr( cBuffer, 1, 7 )
+				cPesoLido := strTran( strTran( cPesoLido , '.', ''), 'D', '')
+			endif
+		// fim case
+		
+		otherwise				
+			//1=CONFIANCA;2=JUNDIAI;3=TOLEDO;4=LIDER;5=OUTRO
+			If ((Self:Modelo == '2') .Or. (Self:Modelo == '1'))
+				//Mandando mensagem para a porta COM
+				msWrite(nH,Chr(5))
+				Sleep(Self:Tempo)
+	
+				//Pegando o tempo final
+				cSegNor := Time()
+				cSegAcr := SubStr(Time(),1,5)+":"+cValToChar(Val(SubStr(Time(),7,2)) + Self:Tempo)
+	
+				If (Balanca == "JUNDIAI")
+					//Enquanto os tempos forem diferentes
+					While (cSegNor != cSegAcr)
+						//Lendo os dados
+						msRead(nH,@cBuffer)
+	
+						//Se não estiver em branco
+						if(!Empty(cBuffer))
+							cLido := Alltrim(cBuffer)
+						EndIf
+	
+						//Atualizando o tempo
+						cSegNor := SubStr(cSegNor,1,5)+":"+cValToChar(Val(SubStr(cSegNor,7,2)) + 1)
+					EndDo
+					
+				//Senão, se for confiança, enquanto o tamanho for menor, ler o conteúdo
+				ElseIf (Self:Modelo == '1')
+					cLido := ''
+					nCont := 1
+					
+					//Enquanto os tempos forem diferentes
+					While (Len(cLido) < 16)
+						//Lendo os dados
+						msRead(nH,@cBuffer)
+						Sleep(200)
+	
+						//Somando o valor lido com o buffer
+						cLido += cBuffer
+	
+						//Aumentando o contador
+						nCont++
+						If (nCont >= 30)
+							cLido := Space(17)
+							Exit                                    
+						EndIf
+	
+					EndDo
+				EndIf
+	
+				cLido   := Upper(cLido)
+				nPosFim := (At('K',cLido) - 1)
+
+				//Pegando a Posição Inicial
+				For nAux := 1 To Len(cLido)
+					//Se o caracter atual estiver contido no intervalo de 0 a 9 e ponto
+					If(SubStr(cLido,nAux,1) $ '0123456789.')
+						nPosIni := nAux
+						Exit
+					EndIf
+				Next
+				
+				cPesoLido := cLido
+			EndIf
+		// fim otherwise
+	endcase
+	
+	//Encerra a conexão com a porta
+	MSClosePort(nH,cConfig)
+	
+	//Converte o peso obtido para inteiro e o atribui a variavel de retorno
+	Peso := Val(cPesoLido)
+	if ( peso > 0 ) // peso padrão em toneladas
+		peso := peso / 1000
+	endif
+
+Return Peso
+
+//-----------------------------------------------
+/*/{Protheus.doc} TBalanca::LeTCPIP() as Numeric
+Comunica com a balança via Socket TcpIp.
+
+@type method
+@version 1.0
+@author Lucas José Corrêa Chagas
+
+@since 31/08/2021
+
+@return Numeric, Peso lido
+/*/
+//-----------------------------------------------
+Method LeTCPIP() as Numeric Class TBalanca
+
+	Local cScript   as Character
+	Local cBuffer   as Character
+	Local cConteudo as Character	
+	Local nSockResp as Numeric
+	Local nSockRead as Numeric
+	Local nFor01    as Numeric
+	Local nRetorno  as Numeric
+	Local oSocket   as Object
+	
+	nRetorno := 0
+	oSocket := tSocketClient():New() //Criando a Clase
+    For nFor01 := 1 to 10
+        nSockResp := oSocket:Connect( val(Self:PortaIP),Alltrim(self:Url),Val( Self:Tempo ) )
+        //Verificamos se a conexao foi efetuada com sucesso
+        IF !( oSocket:IsConnected() )  //ntSocketConnected == 0 OK
+            UserException('Erro ao conectar com a balança.')
+        Else 
+            nSockResp := 0   // Conexão Ok
+            Exit
+        EndIF
+    Next
+ 
+    IF (nSockResp == 0) // Indica que Está conectado // Enviando um Get Para Capturar o Peso
+        Sleep (5000)
+        For nFor01 := 1 To 10
+            cBuffer := ""
+            nSockRead = oSocket:Receive( @cBuffer, Self:Tempo )
+            IF( nSockRead > 0 )
+                cConteudo := cBuffer
+                Exit
+            Else
+                cConteudo := ''
+            Endif
+        Next
+    Else
+        UserException('Não foi possivel conectar com a balança.')
+    EndIF
+    oSocket:CloseConnection()   //Fechando a Conexão
+     
+    If !Empty( AllTrim( cScript ) ) // Irá Aplicar o Script no cConteudo
+        cScript := "{ ||" +  Alltrim(cScript) + "}"  //Transformando o Script em bloco de codigo
+        cConteudo := Eval( &( cScript ) )
+        nRetorno := Val( cConteudo )
+    Else
+        nRetorno := 0
+    EndIf
+
+Return nRetorno
