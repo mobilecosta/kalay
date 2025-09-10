@@ -37,11 +37,7 @@ User Function REST001a()
 
 	cNumReq := ZS1->ZS1_NUMREQ
 
-	aRotBKP := aRotina
-
-	aRotina := {}
-
-	FwMsgRun(,{ || fLoadData() }, cCadastro, 'Carregando dados...')
+	FwMsgRun(,{ || fLoadData() }, "Imprimir Etiquetas", 'Carregando dados...')
 
 	oBrowse := FwMBrowse():New()
 
@@ -58,11 +54,11 @@ User Function REST001a()
 
 	oBrowse:SetEditCell( .T. ) 			// indica que o grid é editavel
 
-	oBrowse:acolumns[7]:ledit    := .T. // informa qual coluna é editável
-	oBrowse:acolumns[7]:cReadVar := 'TMP_QTD'
+	// oBrowse:acolumns[7]:ledit    := .T. // informa qual coluna é editável
+	// oBrowse:acolumns[7]:cReadVar := 'TMP_QTD'
 
-	oBrowse:acolumns[8]:ledit    := .T. // informa qual coluna é editável
-	oBrowse:acolumns[8]:cReadVar := 'TMP_QTDETQ'
+	// oBrowse:acolumns[8]:ledit    := .T. // informa qual coluna é editável
+	// oBrowse:acolumns[8]:cReadVar := 'TMP_QTDETQ'
 
 	oBrowse:AddButton("Confirmar"	,"u_REST001b()",,1)
 
@@ -76,8 +72,6 @@ User Function REST001a()
 		oTable:Delete()
 		oTable := Nil
 	Endif
-
-	aRotina := aRotBKP
 
 	RestArea(aArea)
 
@@ -106,21 +100,17 @@ Static Function fLoadData()
 	aCpoData := {}
 
 	aAdd(aCpoInfo, {'Marcar'  		, '@!' 						, 1							})
-	aAdd(aCpoInfo, {'Item'			, '@!' 						, TamSx3('D1_ITEM')[1]		})
-	aAdd(aCpoInfo, {'Código'  		, '@!' 						, TamSx3('D1_COD')[1]		})
-	aAdd(aCpoInfo, {'Descrição'   	, '@!' 						, TamSx3('B1_DESC')[1]		})
-	aAdd(aCpoInfo, {'Quantidade NF'	, '@E 999,999,999.999999'	, TamSx3('D1_QUANT')[1]		})
-	aAdd(aCpoInfo, {'UM'  			, '@!' 						, TamSx3('B1_UM')[1]		})
-	aAdd(aCpoInfo, {'Quantidade'	, '@E 999,999,999.99' 		, TamSx3('B1_QE')[1]	    })
+	aAdd(aCpoInfo, {'Item'			, '@!' 						, TamSx3('ZS2_ITMREQ')[1]		})
+	aAdd(aCpoInfo, {'Código'  		, '@!' 						, TamSx3('ZS2_CODEMP')[1]		})
+	aAdd(aCpoInfo, {'Descrição'   	, '@!' 						, TamSx3('ZS2_DSCEMP')[1]		})
+	aAdd(aCpoInfo, {'OP'  			, '@!' 						, TamSx3('ZS2_OP')[1]		})
 	aAdd(aCpoInfo, {'Qtd. Etiquetas', '@E 999,999' 				, 6							})
 
 	aAdd(aCpoData, {'TMP_OK'      , 'C'                     , 1                       	, 0							})
-	aAdd(aCpoData, {'TMP_ITEM' 	  , TamSx3('D1_ITEM')[3] 	, TamSx3('D1_ITEM')[1] 		, 0							})
-	aAdd(aCpoData, {'TMP_COD'  	  , TamSx3('D1_COD')[3] 	, TamSx3('D1_COD')[1] 		, 0							})
-	aAdd(aCpoData, {'TMP_DESC'    , TamSx3('B1_DESC')[3]    , TamSx3('B1_DESC')[1]    	, 0							})
-	aAdd(aCpoData, {'TMP_QTDNF'	  , TamSx3('D1_QUANT')[3]   , TamSx3('D1_QUANT')[1] 	, TamSx3('D1_QUANT')[2]		})
-	aAdd(aCpoData, {'TMP_UM'      , TamSx3('B1_UM')[3] 		, TamSx3('B1_UM')[1] 		, 0							})
-	aAdd(aCpoData, {'TMP_QTD'  	  , TamSx3('B1_QE')[3]      , TamSx3('B1_QE')[1] 	    , TamSx3('B1_QE')[2]	    })
+	aAdd(aCpoData, {'TMP_ITEM' 	  , TamSx3('ZS2_ITMREQ')[3] 	, TamSx3('ZS2_ITMREQ')[1] 		, 0							})
+	aAdd(aCpoData, {'TMP_COD'  	  , TamSx3('ZS2_CODEMP')[3] 	, TamSx3('ZS2_CODEMP')[1] 		, 0							})
+	aAdd(aCpoData, {'TMP_DESC'    , TamSx3('ZS2_DSCEMP')[3]    , TamSx3('ZS2_DSCEMP')[1]    	, 0							})
+	aAdd(aCpoData, {'TMP_OP'      , TamSx3('ZS2_OP')[3] 		, TamSx3('ZS2_OP')[1] 		, 0							})
 	aAdd(aCpoData, {'TMP_QTDETQ'  , TamSx3('D1_QUANT')[3]   , 6   						, 0							})
 
 	For nI := 1 To Len(aCpoData)
@@ -144,19 +134,12 @@ Static Function fLoadData()
 
 	BeginSql Alias _cAlias
 
-        SELECT D1_COD, B1_DESC, B1_UM, B1_QE, D1_QUANT, D1_ITEM 
-          FROM %TABLE:SD1% SD1
-            INNER JOIN %TABLE:SB1% SB1
-                 ON SB1.B1_FILIAL = %xFilial:SB1%
-                AND SB1.B1_COD    = SD1.D1_COD
-                AND SB1.%NOTDEL%
-         WHERE SD1.D1_FILIAL  = %xFilial:SD1%
-           AND SD1.D1_DOC     = %Exp:cNrNota%
-           AND SD1.D1_SERIE   = %Exp:cSerie%
-           AND SD1.D1_FORNECE = %Exp:cForn%
-           AND SD1.D1_LOJA    = %Exp:cLjFor%
-           AND SD1.%NOTDEL%
-		   ORDER BY D1_FILIAL, D1_DOC, D1_SERIE, D1_FORNECE, D1_LOJA, D1_ITEM
+        SELECT ZS2_ITMREQ, ZS2_NUMREQ, ZS2_CODEMP, ZS2_DSCEMP, ZS2_OP
+          FROM %TABLE:ZS2% ZS2
+         WHERE ZS2.ZS2_FILIAL  = %xFilial:ZS2%
+           AND ZS2.ZS2_NUMREQ     = %Exp:cNumReq%
+           AND ZS2.%NOTDEL%
+		   ORDER BY ZS2.ZS2_ITMREQ
 	EndSQL
 
 	(_cAlias)->(DbGoTop())
@@ -167,18 +150,13 @@ Static Function fLoadData()
 
 		RecLock('TRB', .T.)
 
-		TRB->TMP_OK 	:= 'S'
-		TRB->TMP_ITEM   := (_cAlias)->D1_ITEM
-		TRB->TMP_COD 	:= (_cAlias)->D1_COD
-		TRB->TMP_DESC  	:= (_cAlias)->B1_DESC
-		TRB->TMP_QTDNF  := (_cAlias)->D1_QUANT
-		TRB->TMP_UM 	:= (_cAlias)->B1_UM
-		If (_cAlias)->B1_QE > 0
-			TRB->TMP_QTD := (_cAlias)->B1_QE
-		Else
-			TRB->TMP_QTD := 1
-		EndIf
-		TRB->TMP_QTDETQ  := INT((_cAlias)->D1_QUANT/TRB->TMP_QTD)
+		TRB->TMP_OK 	  := 'S'
+		TRB->TMP_ITEM := (_cAlias)->ZS2_ITMREQ
+		TRB->TMP_COD  := (_cAlias)->ZS2_CODEMP
+		TRB->TMP_DESC := (_cAlias)->ZS2_DSCEMP
+		TRB->TMP_OP   := (_cAlias)->ZS2_OP
+
+		TRB->TMP_QTDETQ  := 1
 
 		TRB->(MsUnlock())
 
@@ -277,50 +255,21 @@ User Function REST001b()
 Return
 
 Static Function TratarImp()
-
 	Local nX := 0
 
-    Private nVolume := 0
+	Private nVolume := 0
 
 	BeginSql Alias "TMPETIQ"
 
-        SELECT D1_DOC, D1_COD, D1_QUANT, D1_LOTECTL, D1_LOTEFOR, D1_DTDIGIT, D1_DTVALID, D1_FORNECE, D1_LOJA, 
-                B1_DESC, B1_UM, B1_QE, A2_NOME, A2_CGC, BZ_QE, F1_VOLUME1, B1_CODGTIN, F1_FORNECE, F1_LOJA, 
-                F1_DOC, F1_SERIE
-		  FROM %Table:SD1% SD1
-
-			INNER JOIN %Table:SF1% SF1
-			   ON SF1.F1_FILIAL  = %xFilial:SF1%
-			  AND SF1.F1_DOC     = SD1.D1_DOC
-			  AND SF1.F1_SERIE   = SD1.D1_SERIE
-			  AND SF1.F1_FORNECE = SD1.D1_FORNECE
-			  AND SF1.F1_LOJA    = SD1.D1_LOJA
-			  AND SF1.%NotDel%
-
-			INNER JOIN %Table:SB1% SB1
-			   ON SB1.B1_FILIAL = %xFilial:SB1%
-			  AND SB1.B1_COD    = SD1.D1_COD
-			  AND SB1.%NotDel%
-
-			INNER JOIN %Table:SA2% SA2
-			   ON SA2.A2_FILIAL = %xFilial:SA2%
-			  AND SA2.A2_COD    = %Exp:cForn%
-			  AND SA2.A2_LOJA   = %Exp:cLjFor%
-			  AND SA2.%NotDel%
-
-			LEFT JOIN %Table:SBZ% SBZ
-			   ON SBZ.BZ_FILIAL = %xFilial:SBZ%
-			  AND SBZ.BZ_COD    = SD1.D1_COD
-			  AND SBZ.%NotDel%
-
-        WHERE SD1.D1_FILIAL  = %xFilial:SD1%
-		  AND SD1.D1_DOC  	 = %Exp:cNrNota%
-          AND SD1.D1_SERIE   = %Exp:cSerie%
-          AND SD1.D1_FORNECE = %Exp:cForn%
-          AND SD1.D1_LOJA    = %Exp:cLjFor%
-          AND SD1.%NotDel%
-        
-        ORDER BY D1_FILIAL, D1_DOC, D1_SERIE, D1_FORNECE, D1_LOJA, D1_ITEM
+		SELECT ZS2_ITMREQ, ZS2_NUMREQ, ZS2_CODEMP, ZS2_DSCEMP, ZS2_DTEMP, ZS2_OP, ZS2_PESLIQ, ZS2_PESBRT, ZS2_TARA, B1_UM
+				FROM %TABLE:ZS2% ZS2
+				INNER JOIN %TABLE:SB1% SB1
+				ON SB1.B1_FILIAL  = %xFilial:SB1% AND SB1.B1_COD = ZS2.ZS2_CODEMP
+				WHERE ZS2.ZS2_FILIAL  = %xFilial:ZS2%
+					AND ZS2.ZS2_NUMREQ  = %Exp:cNumReq%
+					AND ZS2.%NOTDEL%
+					AND SB1.%NOTDEL%
+			ORDER BY ZS2.ZS2_ITMREQ
 
 	EndSql
 
@@ -330,7 +279,6 @@ Static Function TratarImp()
 
 	TRB->(DBGoTop())
 
-
 		Do While ! TMPETIQ->(Eof())
 
 			If TRB->TMP_OK = "N"
@@ -339,15 +287,7 @@ Static Function TratarImp()
 				Loop
 			EndIf
 
-			If TRB->TMP_QTD > 0
-				nQE := TRB->TMP_QTD
-			Else
-				nQE := 1
-			EndIf
-
 			For nX := 1 To TRB->TMP_QTDETQ
-				nQuant := nQE
-                nVolume += 1
 				MontarImp()
 			Next
 
@@ -370,90 +310,25 @@ Static Function MontarImp()
 	oPrinter:StartPage()
 
 	nRow += 20
-	oPrinter:SayAlign(nRow, nCol, "05/05/2025", oArial10, 130, 50,, 2, 0)
+	oPrinter:SayAlign(nRow, nCol, DToC(SToD(TMPETIQ->ZS2_DTEMP)), oArial10, 130, 50,, 2, 0)
 	nRow += 10
-	oPrinter:SayAlign(nRow, nCol, "MP0001", oArial10, 130, 50,, 2, 0)
+	oPrinter:SayAlign(nRow, nCol, AllTrim(TMPETIQ->ZS2_CODEMP), oArial10, 130, 50,, 2, 0)
 	nRow += 10
-	oPrinter:SayAlign(nRow, nCol, "DIOXIO DE TITANIO", oArial10, 130, 50,, 2, 0)
+
+	cDesc := PadR(TMPETIQ->ZS2_DSCEMP, 26)
+	oPrinter:SayAlign(nRow, nCol, AllTrim(cDesc), oArial10, 130, 50,, 2, 0)
 	nRow += 10
-	oPrinter:SayAlign(nRow, nCol, "000000000000001", oArial10, 130, 50,, 2, 0)
+	oPrinter:SayAlign(nRow, nCol, TMPETIQ->ZS2_OP, oArial10, 130, 50,, 2, 0)
 	nRow += 10
-	oPrinter:SayAlign(nRow, nCol, "0000001", oArial10, 130, 50,, 2, 0)
+	oPrinter:SayAlign(nRow, nCol, AllTrim(TMPETIQ->ZS2_NUMREQ), oArial10, 130, 50,, 2, 0)
 	nRow += 10
-	oPrinter:SayAlign(nRow, nCol, "15,5000 KG", oArial10, 130, 50,, 2, 0)
+	oPrinter:SayAlign(nRow, nCol, AllTrim(Transf( TMPETIQ->ZS2_PESBRT , PesqPict("ZS2","ZS2_PESBRT") )) + " " + AllTrim(TMPETIQ->B1_UM), oArial10, 130, 50,, 2, 0)
 	nRow += 10
-	oPrinter:SayAlign(nRow, nCol, "0,50000 KG", oArial10, 130, 50,, 2, 0)
+	oPrinter:SayAlign(nRow, nCol, AllTrim(Transf( TMPETIQ->ZS2_TARA , PesqPict("ZS2","ZS2_TARA") )) + " " + AllTrim(TMPETIQ->B1_UM), oArial10, 130, 50,, 2, 0)
 	nRow += 10
-	oPrinter:SayAlign(nRow, nCol, "12,0000 KG", oArial10, 130, 50,, 2, 0)
+	oPrinter:SayAlign(nRow, nCol, AllTrim(Transf( TMPETIQ->ZS2_PESLIQ , PesqPict("ZS2","ZS2_PESLIQ") )) + " " + AllTrim(TMPETIQ->B1_UM), oArial10, 130, 50,, 2, 0)
 
 	oPrinter:EndPage()
-
-	// Private nRow    := 15
-	// Private nCol    := 15
-
-	// oPrinter:SetPaperSize(0, 100,140)
-	// oPrinter:SetMargin(001,001,001,001)
-	// oPrinter:StartPage()
-
-	// cArqLogo             := "\system\danfe" + cEmpAnt + cFilAnt + ".bmp"
-	// If !File(cArqLogo)
-	// 	cArqLogo         := "\system\danfe" + cEmpAnt + Left(cFilAnt, 4) + ".bmp"
-	// 	If !File(cArqLogo)
-	// 		cArqLogo     := "\system\danfe" + cEmpAnt + Left(cFilAnt, 2) + ".bmp"
-	// 		If !File(cArqLogo)
-	// 			cArqLogo := "\system\danfe" + cEmpAnt + ".bmp"
-	// 		EndIf
-	// 	EndIf
-	// EndIF
-
-	// oPrinter:SayBitmap( 5, nCol,cArqLogo)
-
-	// oPrinter:Say( nRow+20, nCol+210,"ENTRADA",oArial15N,,,)
-	// oPrinter:SayAlign(nRow+20+2, nCol+120, AllTrim(TMPETIQ->B1_DESC), oArial15, 250, 50,, 2, 0)
-
-	// oPrinter:Code128(80, 285, AllTrim(TMPETIQ->D1_COD), 0.5, 25, .T., oArial8N)
-
-	// oPrinter:Code128(120+10, 285, cValToChar(TMPETIQ->D1_QUANT), 0.5, 25, .T., oArial8N)
-
-	// oPrinter:Code128(160+20, 285, AllTrim(TMPETIQ->D1_LOTECTL), 0.5, 25, .T., oArial8N)
-
-	// nRow += 100
-	// oPrinter:Say( nRow, nCol,"FORNECEDOR: ",oArial10N,,,)
-	// oPrinter:Say( nRow, nCol+62,AllTrim(TMPETIQ->A2_NOME),oArial10,,,)
-
-	// nRow += 15
-	// oPrinter:Say( nRow, nCol,"CNPJ: ",oArial10N,,,)
-	// oPrinter:Say( nRow, nCol+25,Transform(TMPETIQ->A2_CGC,"@R 99.999.999/9999-99"),oArial10,,,)
-
-	// nRow += 15
-	// oPrinter:Say( nRow, nCol,"CODIGO: ",oArial10N,,,)
-	// oPrinter:Say( nRow, nCol+37,AllTrim(TMPETIQ->D1_COD),oArial10,,,)
-
-	// nRow += 15
-	// oPrinter:Say( nRow, nCol,"DESCRIÇÂO: ",oArial10N,,,)
-	// oPrinter:Say( nRow, nCol+53,AllTrim(TMPETIQ->B1_DESC),oArial10,,,)
-
-	// nRow += 15
-	// oPrinter:Say( nRow, nCol,"QUANTIDADE: ",oArial10N,,,)
-	// oPrinter:Say( nRow, nCol+56,cValToChar(nQuant),oArial10,,,)
-
-	// nRow += 15
-	// oPrinter:Say( nRow, nCol,"UM: ",oArial10N,,,)
-	// oPrinter:Say( nRow, nCol+18,TMPETIQ->B1_UM,oArial10,,,)
-
-	// nRow += 15
-	// oPrinter:Say( nRow, nCol,"VOLUMES: ",oArial10N,,,)
-	// oPrinter:Say( nRow, nCol+43,cValToChar(nVolume) + "/" + cValToChar(TRB->TMP_QTDETQ),oArial10,,,)
-
-	// nRow += 15
-	// oPrinter:Say( nRow, nCol,"LOTE: ",oArial10N,,,)
-	// oPrinter:Say( nRow, nCol+25,AllTrim(TMPETIQ->D1_LOTECTL),oArial10,,,)
-
-	// nRow += 15
-	// oPrinter:Say( nRow, nCol,"DATA: ",oArial10N,,,)
-	// oPrinter:Say( nRow, nCol+25,dToC(SF1->F1_DTDIGIT),oArial10,,,)
-
-	// oPrinter:EndPage()
 
 Return
 

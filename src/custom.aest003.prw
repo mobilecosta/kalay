@@ -112,6 +112,9 @@ Return
 User Function AEST003EW(cMensagem)
 	Local cEventID as character
 	Local cTitulo as character
+	Local cFunBkp := funName()
+
+	setFunName("AEST003EW")
 
 	cEventID  := "Z01" //Evento cadastrado na tabela E3
 
@@ -119,7 +122,12 @@ User Function AEST003EW(cMensagem)
 
 	EventInsert(FW_EV_CHANEL_ENVIRONMENT, FW_EV_CATEGORY_MODULES, cEventID, FW_EV_LEVEL_INFO, "", cTitulo, cMensagem, .T.)
 
+	setFunName(cFunBkp)
+
+	FWAlertSuccess("Notificação enviada com sucesso.", "Sucesso")
 Return
+
+
 
 
 User Function TstEW()

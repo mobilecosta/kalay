@@ -1,7 +1,7 @@
 MANIFESTO DE ATUALIZAÇÃO
 
-Data : 22/08/2025
-Hora : 05:03:29
+Data : 09/09/2025
+Hora : 01:58:09
 Arquivo de atualização diferencial baseado em projeto gerado pelo Configurador
 Projeto : 000004
 Descrição : SEPARAÇÃO                                         
@@ -76,6 +76,9 @@ Campo : ZS1_REQPRI
 
 Operação:Inclusão ou Alteração
 Campo : ZS1_OP    
+
+Operação:Inclusão ou Alteração
+Campo : ZS1_DOC   
 
 Operação:Inclusão ou Alteração
 Campo : ZS1_LOTECT
@@ -157,6 +160,15 @@ Campo : ZS2_SLDREQ
 
 Operação:Inclusão ou Alteração
 Campo : ZS2_QTDSEP
+
+Operação:Inclusão ou Alteração
+Campo : ZS2_PESBRT
+
+Operação:Inclusão ou Alteração
+Campo : ZS2_TARA  
+
+Operação:Inclusão ou Alteração
+Campo : ZS2_PESLIQ
 
 Operação:Inclusão ou Alteração
 Campo : ZS2_LOCAL 
@@ -619,6 +631,7 @@ Chave : ZS1_TIPO
 Chave : ZS1_EMISSA
 Chave : ZS1_REQPRI
 Chave : ZS1_OP    
+Chave : ZS1_DOC   
 Chave : ZS1_LOTECT
 Chave : ZS1_DTEMOP
 Chave : ZS1_CODPRO
@@ -645,6 +658,9 @@ Chave : ZS2_DTEMP
 Chave : ZS2_QTDORI
 Chave : ZS2_SLDREQ
 Chave : ZS2_QTDSEP
+Chave : ZS2_PESBRT
+Chave : ZS2_TARA  
+Chave : ZS2_PESLIQ
 Chave : ZS2_LOCAL 
 Chave : ZS2_LOTECT
 Chave : ZS2_DTVALI
